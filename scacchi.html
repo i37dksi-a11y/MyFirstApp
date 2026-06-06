@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scacchi</title>
+  <style>
+    :root {
+      --light: #e8d5b5;
+      --dark: #b58863;
+      --hi: rgba(130, 200, 90, 0.55);
+      --last: rgba(255, 220, 100, 0.45);
+      --check: rgba(255, 80, 80, 0.55);
+      --bg: #1a1d24;
+      --text: #e8ecf1;
+      --muted: #8b97a8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      background: radial-gradient(ellipse 100% 70% at 50% 0%, #2d333d 0%, var(--bg) 55%);
+      color: var(--text);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 { margin: 0 0 0.35rem; font-size: 1.35rem; }
+    .sub { color: var(--muted); font-size: 0.86rem; margin: 0 0 0.75rem; text-align: center; max-width: 400px; line-height: 1.45; }
+    .bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.75rem;
+    }
+    .bar label { font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+    .bar button {
+      padding: 0.45rem 0.85rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: #343a46;
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .bar button:hover { filter: brightness(1.08); }
+    .bar button.on { background: #228be6; border-color: #228be6; }
+    #status {
+      font-weight: 700;
+      min-height: 1.5em;
+      margin-bottom: 0.5rem;
+      text-align: center;
+      font-size: 1rem;
+    }
+    #status.check { color: #ff8787; }
+    #status.win { color: #69db7c; }
+    .board-wrap {
+      padding: 10px;
+      background: #252a33;
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      width: min(92vw, 400px);
+      aspect-ratio: 1;
+      border: 3px solid #5c4a32;
+      user-select: none;
+      touch-action: manipulation;
+    }
+    #board button {
+      aspect-ratio: 1;
+      border: none;
+      padding: 0;
+      margin: 0;
+      font-size: clamp(1.75rem, 7.5vw, 2.35rem);
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #board button.light { background: var(--light); }
+    #board button.dark { background: var(--dark); }
+    #board button.sel { box-shadow: inset 0 0 0 4px var(--hi); }
+    #board button.last { box-shadow: inset 0 0 0 3px var(--last); }
+    #board button.check-k { box-shadow: inset 0 0 0 4px var(--check); }
+    #board button.legal::after {
+      content: "";
+      position: absolute;
+      width: 28%;
+      height: 28%;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.22);
+      pointer-events: none;
+    }
+    #board button { position: relative; }
+    #board button.legal-capture::after {
+      width: 85%;
+      height: 85%;
+      border-radius: 50%;
+      background: transparent;
+      border: 4px solid rgba(0,0,0,0.28);
+    }
+    #err { color: #ff8787; font-size: 0.85rem; min-height: 1.2em; text-align: center; margin-top: 0.35rem; }
+    nav { margin-top: 1.25rem; font-size: 0.82rem; color: var(--muted); }
+    nav a { color: #4dabf7; }
+    #loadErr { color: #ff8787; text-align: center; max-width: 360px; }
+  </style>
+</head>
+<body>
+  <h1>Scacchi</h1>
+  <p class="sub">Clicca un pezzo tuo, poi una casella valida (puntino = mossa, cerchio = cattura). Promozione automatica in regina.</p>
+
+  <div class="bar">
+    <label><input type="radio" name="mode" value="2p" checked /> Due giocatori</label>
+    <label><input type="radio" name="mode" value="pc" /> Tu vs computer (nero)</label>
+  </div>
+  <div class="bar">
+    <button type="button" id="btnNew">Nuova partita</button>
+    <button type="button" id="btnUndo">Annulla mossa</button>
+  </div>
+
+  <p id="status">Caricamento…</p>
+  <div class="board-wrap"><div id="board" aria-label="Scacchiera"></div></div>
+  <p id="err"></p>
+  <p id="loadErr" hidden>Impossibile caricare il motore scacchi. Serve internet per la prima apertura (libreria da rete).</p>
+
+  <nav><a href="entra.html">← Entra</a></nav>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js" crossorigin="anonymous"></script>
+  <script>
+    const FILES = "abcdefgh";
+    const pieceUnicode = {
+      w: { p: "♙", r: "♖", n: "♘", b: "♗", q: "♕", k: "♔" },
+      b: { p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚" },
+    };
+
+    let game = null;
+    let selected = null;
+    let lastMove = null;
+    let boardEl = document.getElementById("board");
+    let statusEl = document.getElementById("status");
+    let errEl = document.getElementById("err");
+
+    function squareColor(file, rank) {
+      return (file + rank) % 2 === 0 ? "light" : "dark";
+    }
+
+    function idxToSq(file, rank) {
+      return FILES[file] + (rank + 1);
+    }
+
+    function newGame() {
+      if (typeof Chess === "undefined") {
+        document.getElementById("loadErr").hidden = false;
+        statusEl.textContent = "Errore caricamento.";
+        return;
+      }
+      game = new Chess();
+      selected = null;
+      lastMove = null;
+      errEl.textContent = "";
+      render();
+      updateStatus();
+    }
+
+    function kingSquare(color) {
+      const b = game.board();
+      for (let r = 0; r < 8; r++) {
+        for (let f = 0; f < 8; f++) {
+          const p = b[r][f];
+          if (p && p.type === "k" && p.color === color) return idxToSq(f, 7 - r);
+        }
+      }
+      return null;
+    }
+
+    function render() {
+      boardEl.innerHTML = "";
+      const b = game.board();
+      for (let rank = 7; rank >= 0; rank--) {
+        for (let file = 0; file < 8; file++) {
+          const sq = idxToSq(file, rank);
+          const cell = document.createElement("button");
+          cell.type = "button";
+          cell.dataset.square = sq;
+          cell.className = squareColor(file, rank);
+          const piece = b[7 - rank][file];
+          if (piece) {
+            cell.textContent = pieceUnicode[piece.color][piece.type];
+            cell.dataset.piece = piece.color + piece.type;
+          }
+          if (lastMove && (sq === lastMove.from || sq === lastMove.to)) cell.classList.add("last");
+          const inCheck = game.in_check();
+          if (inCheck) {
+            const ksq = kingSquare(game.turn());
+            if (sq === ksq) cell.classList.add("check-k");
+          }
+          if (selected === sq) cell.classList.add("sel");
+          if (selected) {
+            const moves = game.moves({ square: selected, verbose: true });
+            for (const m of moves) {
+              if (m.to === sq) {
+                cell.classList.add(m.captured ? "legal-capture" : "legal");
+                break;
+              }
+            }
+          }
+          cell.addEventListener("click", () => onSquare(sq));
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function updateStatus() {
+      statusEl.className = "";
+      if (!game) return;
+      if (game.in_checkmate()) {
+        statusEl.textContent = game.turn() === "w" ? "Scacco matto — vince il Nero!" : "Scacco matto — vince il Bianco!";
+        statusEl.classList.add("win");
+        return;
+      }
+      if (game.in_draw() || game.in_stalemate()) {
+        statusEl.textContent = game.in_stalemate() ? "Stallo — patta." : "Patta.";
+        statusEl.classList.add("win");
+        return;
+      }
+      let t = game.turn() === "w" ? "Bianco" : "Nero";
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      if (mode === "pc") {
+        t += game.turn() === "w" ? " (tu)" : " (computer)";
+      }
+      if (game.in_check()) {
+        statusEl.textContent = "Scacco! Muove " + t;
+        statusEl.classList.add("check");
+      } else {
+        statusEl.textContent = "Muove " + t;
+      }
+    }
+
+    function tryMove(from, to) {
+      const moves = game.moves({ square: from, verbose: true });
+      const m = moves.find((x) => x.to === to);
+      if (!m) return false;
+      const opts = { from: from, to: to };
+      if (m.promotion) opts.promotion = "q";
+      const r = game.move(opts);
+      if (!r) return false;
+      lastMove = { from: r.from, to: r.to };
+      return true;
+    }
+
+    function onSquare(sq) {
+      errEl.textContent = "";
+      if (!game || game.game_over()) return;
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      if (mode === "pc" && game.turn() === "b") return;
+
+      const piece = game.get(sq);
+      if (selected) {
+        if (tryMove(selected, sq)) {
+          selected = null;
+          render();
+          updateStatus();
+          if (!game.game_over() && mode === "pc" && game.turn() === "b") {
+            setTimeout(pcMove, 350);
+          }
+          return;
+        }
+      }
+      if (piece && piece.color === game.turn()) {
+        selected = sq;
+        render();
+        return;
+      }
+      selected = null;
+      render();
+    }
+
+    function pcMove() {
+      if (!game || game.game_over()) return;
+      const moves = game.moves({ verbose: true });
+      if (!moves.length) return;
+      const cap = moves.filter((m) => m.captured);
+      const pick = (cap.length ? cap : moves)[(Math.random() * (cap.length || moves.length)) | 0];
+      game.move(pick);
+      lastMove = { from: pick.from, to: pick.to };
+      selected = null;
+      render();
+      updateStatus();
+    }
+
+    document.getElementById("btnNew").onclick = newGame;
+    document.getElementById("btnUndo").onclick = () => {
+      if (!game) return;
+      game.undo();
+      if (document.querySelector('input[name="mode"]:checked').value === "pc") game.undo();
+      lastMove = null;
+      selected = null;
+      errEl.textContent = "";
+      render();
+      updateStatus();
+    };
+
+    document.querySelectorAll('input[name="mode"]').forEach((r) => {
+      r.addEventListener("change", newGame);
+    });
+
+    window.addEventListener("load", () => {
+      if (typeof Chess === "undefined") {
+        document.getElementById("loadErr").hidden = false;
+        statusEl.textContent = "Riprova con connessione internet.";
+        return;
+      }
+      newGame();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MyFirstApp
+GenericName=Giochi
+Comment=Tutti i giochi in un'unica app
+Exec=/home/idris/Documents/SoftwareDevelopment/MyFirstApp/launch-myfirstapp.sh
+Icon=/home/idris/Documents/SoftwareDevelopment/MyFirstApp/icon.svg
+Path=/home/idris/Documents/SoftwareDevelopment/MyFirstApp
+Terminal=false
+StartupNotify=true
+Categories=Game;KidsGame;
+Keywords=giochi;games;ninjago;ninja;
+StartupWMClass=MyFirstApp

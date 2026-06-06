@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>La palla per ultimo</title>
+  <style>
+    :root {
+      --bg: #0e1218;
+      --card: #1a222d;
+      --text: #e8ecf1;
+      --muted: #8b97a8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      background: radial-gradient(ellipse 100% 70% at 50% 0%, #1e3a5c 0%, var(--bg) 55%);
+      color: var(--text);
+      padding: 0.75rem 1rem 1.5rem;
+      line-height: 1.45;
+    }
+    h1 { font-size: 1.25rem; margin: 0 0 0.35rem; }
+    .sub { color: var(--muted); font-size: 0.86rem; margin: 0 0 0.9rem; max-width: 520px; }
+    .setup {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 0.9rem 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      max-width: 420px;
+      margin-bottom: 0.75rem;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin: 0.4rem 0;
+      font-size: 0.9rem;
+    }
+    .row label { font-weight: 600; }
+    select {
+      padding: 0.35rem 0.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: #252b36;
+      color: var(--text);
+    }
+    .btn {
+      width: 100%;
+      max-width: 420px;
+      margin-top: 0.6rem;
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      background: linear-gradient(180deg, #51cf66, #2f9e44);
+      color: #0d1f12;
+      box-shadow: 0 4px 0 #1e6b32;
+    }
+    .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1e6b32; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    #gameWrap {
+      position: relative;
+      width: 100%;
+      max-width: min(96vw, 520px);
+      margin: 0 auto;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+      background: #2d4a3e;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+      border: 3px solid rgba(255,255,255,0.12);
+    }
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      max-width: min(96vw, 520px);
+      margin: 0.5rem auto 0;
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+    #hud #timeLeft {
+      font-size: 1.35rem;
+      color: #ffd43b;
+      text-shadow: 0 0 12px rgba(255,212,59,0.4);
+    }
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    #controlsHint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      max-width: 520px;
+      margin-top: 0.65rem;
+    }
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 1rem;
+    }
+    #overlay.on { display: flex; }
+    #overlay .card {
+      background: var(--card);
+      padding: 1.35rem;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 340px;
+      border: 2px solid #51cf66;
+    }
+    #overlay h2 { margin: 0 0 0.5rem; color: #69db7c; font-size: 1.25rem; }
+    nav { margin-top: 1rem; font-size: 0.82rem; color: var(--muted); }
+    nav a { color: #4dabf7; }
+  </style>
+</head>
+<body>
+  <h1>La palla per ultimo</h1>
+  <p class="sub" lang="de">
+    Am Anfang liegt der Ball in der Mitte auf dem Boden — schnell zugreifen! Wer ihn hat, muss wegrennen; die anderen wollen ihn stehlen.
+    Wenn die Zeit abläuft, gewinnt, wer zuletzt den Ball hält. <strong>2 bis 4</strong> Spieler, davon <strong>0–3 Roboter</strong> (der Rest spielt mit der Tastatur).
+    <strong>Ball vom Roboter nehmen:</strong> Wenn ein Roboter die Palla hält, ist der „Stehlen“-Bereich <strong>größer</strong> und ein <strong>Mensch</strong> wird bevorzugt, falls mehrere im Kreis sind.
+    <em style="display:block;margin-top:0.5rem;opacity:0.92;">Im Spiel selbst erscheinen alle Texte auf Italienisch.</em>
+  </p>
+
+  <div class="setup" id="setupPanel" lang="de">
+    <div class="row">
+      <label for="numP">Anzahl Spieler</label>
+      <select id="numP">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+      </select>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin:0.5rem 0 0.35rem;">Mensch oder Roboter?</p>
+    <div id="playerRows"></div>
+    <button type="button" class="btn" id="btnStart">Spiel starten</button>
+  </div>
+
+  <div id="hud" style="display:none;" lang="it">
+    <span id="carrierHud"></span>
+    <span id="timeLeft">60</span>
+  </div>
+  <div id="gameWrap" style="display:none;" lang="it">
+    <canvas id="cv" width="480" height="480" aria-label="Campo di gioco"></canvas>
+  </div>
+  <p id="controlsHint" style="display:none;" lang="it"></p>
+
+  <div id="overlay" lang="it">
+    <div class="card">
+      <h2 id="endTitle">Fine!</h2>
+      <p id="endMsg"></p>
+      <button type="button" class="btn" id="btnAgain" style="margin-top:1rem;">Gioca ancora</button>
+    </div>
+  </div>
+
+  <nav lang="de"><a href="entra.html">← Menü / Entra</a></nav>
+
+  <script>
+    const W = 480,
+      H = 480;
+    const COLORS = [
+      { name: "Rosso", hex: "#e03131", rgb: [224, 49, 49] },
+      { name: "Blu", hex: "#339af0", rgb: [51, 154, 240] },
+      { name: "Verde", hex: "#2f9e44", rgb: [47, 158, 68] },
+      { name: "Giallo", hex: "#f08c00", rgb: [240, 140, 0] },
+    ];
+    const COL_DE = ["Rot", "Blau", "Grün", "Gelb"];
+    const KEYS = [
+      { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight", label: "frecce ↑↓←→" },
+      { up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD", label: "W A S D" },
+      { up: "KeyI", down: "KeyK", left: "KeyJ", right: "KeyL", label: "I J K L" },
+      { up: "KeyT", down: "KeyG", left: "KeyF", right: "KeyH", label: "T F G H" },
+    ];
+
+    const R_PLAYER = 18;
+    const R_BALL = 10;
+    const PICKUP_R = 26;
+    const STEAL_R = 38;
+    const STEAL_EXTRA_IF_CARRIER_ROBOT = 16;
+    const MAX_SP = 4.2;
+    const CARRY_MULT = 1.08;
+    const ROBOT_CARRY_SLOW = 0.93;
+    const GAME_SEC = 60;
+
+    let canvas, ctx;
+    let players = [];
+    let ball = { x: W / 2, y: H / 2, heldBy: null };
+    let keys = {};
+    let running = false;
+    let timeLeft = GAME_SEC;
+    let lastT = 0;
+    let rafId = 0;
+
+    function buildSetupRows(n) {
+      const el = document.getElementById("playerRows");
+      el.innerHTML = "";
+      for (let i = 0; i < n; i++) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML =
+          '<label><span class="dot" style="background:' +
+          COLORS[i].hex +
+          '"></span>Spieler ' +
+          (i + 1) +
+          " · " +
+          COL_DE[i] +
+          '</label><select data-i="' +
+          i +
+          '"><option value="human">Mensch</option><option value="robot">Roboter</option></select>';
+        el.appendChild(row);
+      }
+    }
+
+    document.getElementById("numP").addEventListener("change", () => {
+      buildSetupRows(parseInt(document.getElementById("numP").value, 10));
+    });
+    buildSetupRows(4);
+
+    function dist(ax, ay, bx, by) {
+      const dx = ax - bx,
+        dy = ay - by;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function clamp(v, a, b) {
+      return Math.max(a, Math.min(b, v));
+    }
+
+    function normalize(dx, dy) {
+      const l = Math.sqrt(dx * dx + dy * dy) || 1;
+      return { x: dx / l, y: dy / l };
+    }
+
+    function startGame() {
+      const n = parseInt(document.getElementById("numP").value, 10);
+      let robots = 0;
+      players = [];
+      for (let i = 0; i < n; i++) {
+        const sel = document.querySelector('select[data-i="' + i + '"]');
+        const isRobot = sel.value === "robot";
+        if (isRobot) robots++;
+        const angle = (i / n) * Math.PI * 2 + 0.2;
+        const spawnR = 140;
+        players.push({
+          x: W / 2 + Math.cos(angle) * spawnR,
+          y: H / 2 + Math.sin(angle) * spawnR,
+          vx: 0,
+          vy: 0,
+          color: COLORS[i],
+          keys: KEYS[i],
+          isRobot: isRobot,
+          idx: i,
+        });
+      }
+      if (robots > 3) {
+        alert("Höchstens 3 Roboter — bitte die Auswahl ändern.");
+        return;
+      }
+      ball = { x: W / 2, y: H / 2, heldBy: null };
+      timeLeft = GAME_SEC;
+      keys = {};
+      document.getElementById("setupPanel").style.display = "none";
+      document.getElementById("hud").style.display = "flex";
+      document.getElementById("gameWrap").style.display = "block";
+      document.getElementById("controlsHint").style.display = "block";
+      updateControlsHint(n);
+      canvas = document.getElementById("cv");
+      ctx = canvas.getContext("2d");
+      running = true;
+      lastT = performance.now();
+      if (rafId) cancelAnimationFrame(rafId);
+      loop(lastT);
+    }
+
+    function updateControlsHint(n) {
+      const lines = [];
+      for (let i = 0; i < n; i++) {
+        if (!players[i].isRobot) {
+          lines.push(
+            "<span class=\"dot\" style=\"background:" +
+              COLORS[i].hex +
+              "\"></span>" +
+              COLORS[i].name +
+              ": tasti <strong>" +
+              KEYS[i].label +
+              "</strong>"
+          );
+        }
+      }
+      document.getElementById("controlsHint").innerHTML =
+        lines.length ? lines.join("<br/>") : "Tutti robot: guarda la partita!";
+    }
+
+    function robotAccel(p) {
+      let ax = 0,
+        ay = 0;
+      const others = players.filter((q) => q !== p);
+      const carrierIdx = ball.heldBy;
+
+      if (carrierIdx === null) {
+        const dx = ball.x - p.x,
+          dy = ball.y - p.y;
+        const n = normalize(dx, dy);
+        ax = n.x;
+        ay = n.y;
+      } else if (carrierIdx === p.idx) {
+        let bx = 0,
+          by = 0;
+        for (const o of others) {
+          const d = dist(p.x, p.y, o.x, o.y);
+          if (d < 1) continue;
+          bx += (p.x - o.x) / d;
+          by += (p.y - o.y) / d;
+        }
+        if (bx === 0 && by === 0) {
+          ax = Math.sin(p.idx * 1.7 + performance.now() * 0.002);
+          ay = Math.cos(p.idx * 1.3 + performance.now() * 0.002);
+        } else {
+          const n = normalize(bx, by);
+          ax = n.x;
+          ay = n.y;
+        }
+      } else {
+        const carrier = players[carrierIdx];
+        const dx = carrier.x - p.x,
+          dy = carrier.y - p.y;
+        const n = normalize(dx, dy);
+        ax = n.x;
+        ay = n.y;
+      }
+
+      let mult = carrierIdx === p.idx ? CARRY_MULT : 1;
+      if (carrierIdx === p.idx && p.isRobot) mult *= ROBOT_CARRY_SLOW;
+      p.vx += ax * 0.55 * mult;
+      p.vy += ay * 0.55 * mult;
+    }
+
+    function humanAccel(p) {
+      const mult = ball.heldBy === p.idx ? CARRY_MULT : 1;
+      let ax = 0,
+        ay = 0;
+      const k = p.keys;
+      if (keys[k.up]) ay -= 1;
+      if (keys[k.down]) ay += 1;
+      if (keys[k.left]) ax -= 1;
+      if (keys[k.right]) ax += 1;
+      if (ax !== 0 || ay !== 0) {
+        const n = normalize(ax, ay);
+        p.vx += n.x * 0.62 * mult;
+        p.vy += n.y * 0.62 * mult;
+      }
+    }
+
+    function physics(dt) {
+      const friction = Math.pow(0.88, dt / 16);
+
+      for (const p of players) {
+        if (p.isRobot) robotAccel(p);
+        else humanAccel(p);
+
+        p.vx *= friction;
+        p.vy *= friction;
+        const sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        let cap = ball.heldBy === p.idx ? MAX_SP * CARRY_MULT : MAX_SP;
+        if (ball.heldBy === p.idx && p.isRobot) cap *= ROBOT_CARRY_SLOW;
+        const max = cap * (dt / 16);
+        if (sp > max) {
+          p.vx = (p.vx / sp) * max;
+          p.vy = (p.vy / sp) * max;
+        }
+
+        p.x += p.vx * (dt / 16);
+        p.y += p.vy * (dt / 16);
+        p.x = clamp(p.x, R_PLAYER + 8, W - R_PLAYER - 8);
+        p.y = clamp(p.y, R_PLAYER + 8, H - R_PLAYER - 8);
+      }
+
+      const carrierIdx = ball.heldBy;
+      if (carrierIdx !== null) {
+        const c = players[carrierIdx];
+        ball.x = c.x;
+        ball.y = c.y;
+        const rSteal = c.isRobot ? STEAL_R + STEAL_EXTRA_IF_CARRIER_ROBOT : STEAL_R;
+        const thieves = [];
+        for (let i = 0; i < players.length; i++) {
+          if (i === carrierIdx) continue;
+          if (dist(players[i].x, players[i].y, c.x, c.y) < rSteal) thieves.push(i);
+        }
+        if (thieves.length) {
+          const humanThieves = thieves.filter((i) => !players[i].isRobot);
+          const pick =
+            c.isRobot && humanThieves.length
+              ? humanThieves[(Math.random() * humanThieves.length) | 0]
+              : thieves[(Math.random() * thieves.length) | 0];
+          ball.heldBy = pick;
+          players[pick].vx *= -0.35;
+          players[pick].vy *= -0.35;
+          c.vx *= -0.25;
+          c.vy *= -0.25;
+        }
+      } else {
+        const grab = [];
+        for (let i = 0; i < players.length; i++) {
+          if (dist(players[i].x, players[i].y, ball.x, ball.y) < PICKUP_R) grab.push(i);
+        }
+        if (grab.length) ball.heldBy = grab[(Math.random() * grab.length) | 0];
+      }
+    }
+
+    function drawField() {
+      ctx.fillStyle = "#3d5c4a";
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = "rgba(255,255,255,0.15)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, 68, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(0,0,0,0.12)";
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, 52, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawBall() {
+      if (ball.heldBy !== null) return;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, R_BALL, 0, Math.PI * 2);
+      const g = ctx.createRadialGradient(ball.x - 4, ball.y - 4, 2, ball.x, ball.y, R_BALL);
+      g.addColorStop(0, "#fff");
+      g.addColorStop(0.45, "#ffec99");
+      g.addColorStop(1, "#e67700");
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function drawPlayers() {
+      for (const p of players) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, R_PLAYER, 0, Math.PI * 2);
+        ctx.fillStyle = p.color.hex;
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.45)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        if (ball.heldBy === p.idx) {
+          ctx.beginPath();
+          ctx.arc(p.x + R_PLAYER * 0.35, p.y - R_PLAYER * 0.45, R_BALL * 0.95, 0, Math.PI * 2);
+          const g = ctx.createRadialGradient(
+            p.x + R_PLAYER * 0.2,
+            p.y - R_PLAYER * 0.55,
+            1,
+            p.x + R_PLAYER * 0.35,
+            p.y - R_PLAYER * 0.45,
+            R_BALL
+          );
+          g.addColorStop(0, "#fff");
+          g.addColorStop(0.5, "#ffec99");
+          g.addColorStop(1, "#e67700");
+          ctx.fillStyle = g;
+          ctx.fill();
+          ctx.strokeStyle = "rgba(0,0,0,0.3)";
+          ctx.stroke();
+        }
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 13px system-ui,sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const tag = p.isRobot ? "🤖" : String(p.idx + 1);
+        ctx.fillText(tag, p.x, p.y + 1);
+      }
+    }
+
+    function updateHud() {
+      const tEl = document.getElementById("timeLeft");
+      tEl.textContent = Math.ceil(timeLeft);
+      if (timeLeft <= 10) tEl.style.color = "#ff6b6b";
+      else tEl.style.color = "#ffd43b";
+      const ch = document.getElementById("carrierHud");
+      if (ball.heldBy === null) {
+        ch.textContent = "Palla a terra — afferrala!";
+      } else {
+        const c = players[ball.heldBy];
+        ch.innerHTML =
+          '<span class="dot" style="background:' +
+          c.color.hex +
+          '"></span>Ha la palla: <strong>' +
+          c.color.name +
+          "</strong>";
+      }
+    }
+
+    function loop(now) {
+      if (!running) return;
+      const dt = Math.min(48, now - lastT);
+      lastT = now;
+      timeLeft -= dt / 1000;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        running = false;
+        endGame();
+        return;
+      }
+      physics(dt);
+      drawField();
+      drawBall();
+      drawPlayers();
+      updateHud();
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function endGame() {
+      cancelAnimationFrame(rafId);
+      const winner =
+        ball.heldBy !== null ? players[ball.heldBy] : null;
+      document.getElementById("endTitle").textContent = "Tempo scaduto!";
+      const msg = document.getElementById("endMsg");
+      if (winner) {
+        msg.innerHTML =
+          "Ha vinto il colore <strong style=\"color:" +
+          winner.color.hex +
+          '\">' +
+          winner.color.name +
+          "</strong>" +
+          (winner.isRobot ? " (robot)" : "") +
+          " perché aveva la palla!";
+      } else {
+        msg.textContent =
+          "Nessuno aveva afferrato la palla: pareggio assurdo. Rigiocare!";
+      }
+      document.getElementById("overlay").classList.add("on");
+      try {
+        confettiShort();
+      } catch (_) {}
+    }
+
+    function confettiShort() {
+      const c = document.createElement("canvas");
+      c.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:60;";
+      document.body.appendChild(c);
+      const Wc = (c.width = innerWidth),
+        Hc = (c.height = innerHeight);
+      const x = c.getContext("2d");
+      const parts = [];
+      for (let i = 0; i < 60; i++) {
+        parts.push({
+          x: Wc / 2,
+          y: Hc * 0.35,
+          vx: (Math.random() - 0.5) * 14,
+          vy: -6 - Math.random() * 10,
+          c: ["#ff6b6b", "#ffd43b", "#69db7c", "#4dabf7"][(Math.random() * 4) | 0],
+        });
+      }
+      let t0 = performance.now();
+      function frame(now) {
+        x.clearRect(0, 0, Wc, Hc);
+        for (const p of parts) {
+          p.vy += 0.45;
+          p.x += p.vx;
+          p.y += p.vy;
+          x.fillStyle = p.c;
+          x.fillRect(p.x, p.y, 6, 6);
+        }
+        if (now - t0 < 1800) requestAnimationFrame(frame);
+        else c.remove();
+      }
+      requestAnimationFrame(frame);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      keys[e.code] = true;
+      if (
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)
+      )
+        e.preventDefault();
+    });
+    window.addEventListener("keyup", (e) => {
+      keys[e.code] = false;
+    });
+
+    document.getElementById("btnStart").onclick = startGame;
+    document.getElementById("btnAgain").onclick = () => {
+      document.getElementById("overlay").classList.remove("on");
+      document.getElementById("setupPanel").style.display = "block";
+      document.getElementById("hud").style.display = "none";
+      document.getElementById("gameWrap").style.display = "none";
+      document.getElementById("controlsHint").style.display = "none";
+      buildSetupRows(parseInt(document.getElementById("numP").value, 10));
+    };
+  </script>
+</body>
+</html>

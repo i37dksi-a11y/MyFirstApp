@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>La mia Fabbrica</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #1a2332 0%, #0f1419 100%);
+      color: #e7ecf3;
+      padding: 0.65rem 0.75rem 1rem;
+    }
+    h1 {
+      margin: 0 0 0.25rem;
+      text-align: center;
+      font-size: 1.2rem;
+      color: #ffd43b;
+    }
+    .sub {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #8b9cb3;
+      margin: 0 0 0.65rem;
+    }
+    #wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 2px solid #495057;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      touch-action: none;
+      background: #2b3035;
+      cursor: crosshair;
+    }
+    .hud {
+      max-width: 720px;
+      margin: 0.55rem auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      justify-content: center;
+      font-size: 0.76rem;
+    }
+    .pill {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 999px;
+      padding: 0.35rem 0.65rem;
+    }
+    .pill strong { color: #ffd43b; }
+    .panel {
+      max-width: 720px;
+      margin: 0.55rem auto 0;
+      background: #1a2332;
+      border-radius: 14px;
+      padding: 0.75rem;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.5rem;
+    }
+    .tool {
+      flex: 1;
+      min-width: 90px;
+      border: 2px solid transparent;
+      border-radius: 11px;
+      padding: 0.55rem 0.4rem;
+      background: #252f3f;
+      color: #e7ecf3;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      line-height: 1.3;
+    }
+    .tool.sel { border-color: #ffd43b; background: #2d3a52; }
+    .tool small { display: block; font-weight: 500; color: #8b9cb3; margin-top: 0.15rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    button.act {
+      padding: 0.5rem 0.75rem;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.78rem;
+      cursor: pointer;
+      background: linear-gradient(180deg, #51cf66, #2f9e44);
+      color: #fff;
+    }
+    button.act.sec { background: linear-gradient(180deg, #74c0fc, #339af0); }
+    .hint { font-size: 0.72rem; color: #8b9cb3; margin: 0.45rem 0 0; line-height: 1.4; }
+    nav { text-align: center; margin-top: 0.75rem; font-size: 0.82rem; }
+    nav a { color: #74c0fc; font-weight: 600; }
+    .toast {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1864ab;
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .toast.on { opacity: 1; }
+  </style>
+</head>
+<body>
+  <h1>🏭 La mia Fabbrica</h1>
+  <p class="sub">Piazza macchine, produci oggetti e vendili. Espandi la fabbrica!</p>
+  <div id="wrap">
+    <canvas id="cv" width="640" height="440" aria-label="Fabbrica"></canvas>
+  </div>
+  <div class="hud">
+    <span class="pill">💰 Soldi <strong id="money">100</strong></span>
+    <span class="pill">📦 Magazzino <strong id="stock">0</strong></span>
+    <span class="pill">⚙️ Macchine <strong id="machines">0</strong></span>
+    <span class="pill">🎯 Obiettivo <strong id="goal">500</strong></span>
+  </div>
+  <div class="panel">
+    <div class="tools" id="tools"></div>
+    <div class="row">
+      <button type="button" class="act" id="btnSell">Vendi tutto (+💰)</button>
+      <button type="button" class="act sec" id="btnDel">Rimuovi macchina</button>
+    </div>
+    <p class="hint">Clicca sulla griglia per piazzare · i minatori danno materia · le pressa producono · i robot vendono automaticamente</p>
+  </div>
+  <div class="toast" id="toast"></div>
+  <nav><a href="app.html">← MyFirstApp</a></nav>
+
+  <script>
+(function () {
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const W = cv.width;
+  const H = cv.height;
+  const CELL = 40;
+  const COLS = Math.floor(W / CELL);
+  const ROWS = Math.floor((H - 40) / CELL);
+
+  const TOOLS = [
+    { id: "miner", name: "Minatore", ico: "⛏️", cost: 40, desc: "Estrae materia prima", color: "#868e96" },
+    { id: "press", name: "Pressa", ico: "🔧", cost: 60, desc: "Materia → pezzo", color: "#339af0", needs: "ore" },
+    { id: "paint", name: "Verniciatrice", ico: "🎨", cost: 80, desc: "Pezzo → prodotto", color: "#be4bdb", needs: "part" },
+    { id: "robot", name: "Robot vendita", ico: "🤖", cost: 100, desc: "Vende prodotti", color: "#51cf66", needs: "product" },
+    { id: "belt", name: "Nastro", ico: "➡️", cost: 15, desc: "Trasporta items", color: "#495057" },
+    { id: "delete", name: "Rimuovi", ico: "🗑️", cost: 0, desc: "Cancella cella", color: "#e03131" },
+  ];
+
+  let money = 100;
+  let stock = 0;
+  let goal = 500;
+  let selected = "miner";
+  let grid = [];
+  let items = [];
+  let particles = [];
+  let frame = 0;
+  let won = false;
+
+  function initGrid() {
+    grid = [];
+    for (let y = 0; y < ROWS; y++) {
+      grid[y] = [];
+      for (let x = 0; x < COLS; x++) {
+        grid[y][x] = null;
+      }
+    }
+  }
+
+  function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("on");
+    setTimeout(function () { t.classList.remove("on"); }, 2200);
+  }
+
+  function paintHud() {
+    document.getElementById("money").textContent = String(Math.floor(money));
+    document.getElementById("stock").textContent = String(stock);
+    document.getElementById("machines").textContent = String(countMachines());
+    document.getElementById("goal").textContent = String(goal);
+  }
+
+  function countMachines() {
+    let n = 0;
+    for (let y = 0; y < ROWS; y++)
+      for (let x = 0; x < COLS; x++)
+        if (grid[y][x] && grid[y][x].id !== "belt") n++;
+    return n;
+  }
+
+  function buildTools() {
+    const box = document.getElementById("tools");
+    box.innerHTML = "";
+    TOOLS.forEach(function (t) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tool" + (selected === t.id ? " sel" : "");
+      btn.innerHTML = t.ico + " " + t.name + (t.cost ? "<small>" + t.cost + " 💰</small>" : "<small>Gratis</small>");
+      btn.addEventListener("click", function () {
+        selected = t.id;
+        buildTools();
+      });
+      box.appendChild(btn);
+    });
+  }
+
+  function cellAt(px, py) {
+    return {
+      x: Math.floor(px / CELL),
+      y: Math.floor(py / CELL),
+    };
+  }
+
+  function placeMachine(cx, cy, toolId) {
+    if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) return;
+    if (toolId === "delete") {
+      grid[cy][cx] = null;
+      paintHud();
+      return;
+    }
+    const tool = TOOLS.find(function (t) { return t.id === toolId; });
+    if (!tool || grid[cy][cx]) return;
+    if (money < tool.cost) {
+      toast("Soldi insufficienti!");
+      return;
+    }
+    money -= tool.cost;
+    grid[cy][cx] = {
+      id: tool.id,
+      color: tool.color,
+      ico: tool.ico,
+      timer: 0,
+      progress: 0,
+    };
+    paintHud();
+    addParticle(cx * CELL + CELL / 2, cy * CELL + CELL / 2, "#ffd43b");
+  }
+
+  function neighbors(x, y) {
+    return [
+      { x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 },
+    ].filter(function (p) {
+      return p.x >= 0 && p.y >= 0 && p.x < COLS && p.y < ROWS;
+    });
+  }
+
+  function hasNeighborType(x, y, type) {
+    return neighbors(x, y).some(function (p) {
+      const m = grid[p.y][p.x];
+      return m && m.id === type;
+    });
+  }
+
+  function spawnItem(x, y, kind) {
+    items.push({
+      x: x * CELL + CELL / 2,
+      y: y * CELL + CELL / 2,
+      kind: kind,
+      life: 120,
+      vx: (Math.random() - 0.5) * 2,
+      vy: -1 - Math.random(),
+    });
+  }
+
+  function addParticle(x, y, col) {
+    for (let i = 0; i < 5; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 4,
+        life: 20,
+        col: col || "#ffd43b",
+      });
+    }
+  }
+
+  function tickFactory() {
+    if (won) return;
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const m = grid[y][x];
+        if (!m) continue;
+        m.timer = (m.timer || 0) + 1;
+
+        if (m.id === "miner") {
+          if (m.timer % 90 === 0) {
+            spawnItem(x, y, "ore");
+            addParticle(x * CELL + CELL / 2, y * CELL + CELL / 2, "#adb5bd");
+          }
+        } else if (m.id === "press") {
+          m.progress = (m.progress || 0);
+          if (m.timer % 5 === 0 && hasNeighborType(x, y, "miner")) {
+            m.progress += 4;
+          }
+          if (m.progress >= 100) {
+            m.progress = 0;
+            spawnItem(x, y, "part");
+            addParticle(x * CELL + CELL / 2, y * CELL + CELL / 2, "#339af0");
+          }
+        } else if (m.id === "paint") {
+          m.progress = (m.progress || 0);
+          if (m.timer % 5 === 0 && hasNeighborType(x, y, "press")) {
+            m.progress += 3;
+          }
+          if (m.progress >= 100) {
+            m.progress = 0;
+            spawnItem(x, y, "product");
+            stock++;
+            addParticle(x * CELL + CELL / 2, y * CELL + CELL / 2, "#be4bdb");
+            paintHud();
+          }
+        } else if (m.id === "robot") {
+          if (m.timer % 120 === 0 && stock > 0) {
+            const sell = Math.min(stock, 3);
+            stock -= sell;
+            money += sell * 25;
+            addParticle(x * CELL + CELL / 2, y * CELL + CELL / 2, "#51cf66");
+            paintHud();
+            if (money >= goal) {
+              won = true;
+              toast("🏆 FABBRICA COMPLETA! Obiettivo raggiunto!");
+              goal += 500;
+              won = false;
+            }
+          }
+        }
+      }
+    }
+
+    items.forEach(function (it) {
+      it.x += it.vx;
+      it.y += it.vy;
+      it.vy += 0.05;
+      it.life--;
+    });
+    items = items.filter(function (it) { return it.life > 0; });
+
+    particles.forEach(function (p) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life--;
+    });
+    particles = particles.filter(function (p) { return p.life > 0; });
+  }
+
+  function drawGrid() {
+    ctx.fillStyle = "#343a40";
+    ctx.fillRect(0, 0, W, H - 40);
+
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const px = x * CELL;
+        const py = y * CELL;
+        ctx.fillStyle = (x + y) % 2 ? "#3d4349" : "#363b40";
+        ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
+
+        const m = grid[y][x];
+        if (m) {
+          ctx.fillStyle = m.color;
+          ctx.fillRect(px + 4, py + 4, CELL - 8, CELL - 8);
+          ctx.font = "18px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText(m.ico, px + CELL / 2, py + CELL / 2 + 6);
+
+          if (m.progress > 0) {
+            ctx.fillStyle = "#ffd43b";
+            ctx.fillRect(px + 6, py + CELL - 10, (CELL - 12) * (m.progress / 100), 4);
+          }
+        }
+      }
+    }
+
+    ctx.fillStyle = "#212529";
+    ctx.fillRect(0, H - 40, W, 40);
+    ctx.fillStyle = "#868e96";
+    ctx.font = "600 12px system-ui";
+    ctx.textAlign = "left";
+    ctx.fillText("🏭 Piano fabbrica — collega le macchine vicine!", 12, H - 16);
+
+    items.forEach(function (it) {
+      const colors = { ore: "#adb5bd", part: "#339af0", product: "#be4bdb" };
+      ctx.fillStyle = colors[it.kind] || "#fff";
+      ctx.beginPath();
+      ctx.arc(it.x, it.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    particles.forEach(function (p) {
+      ctx.globalAlpha = p.life / 20;
+      ctx.fillStyle = p.col;
+      ctx.fillRect(p.x, p.y, 3, 3);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  function loop() {
+    frame++;
+    if (frame % 2 === 0) tickFactory();
+    drawGrid();
+    requestAnimationFrame(loop);
+  }
+
+  function clientPos(e) {
+    const r = cv.getBoundingClientRect();
+    const cx = e.clientX != null ? e.clientX : e.touches[0].clientX;
+    const cy = e.clientY != null ? e.clientY : e.touches[0].clientY;
+    return {
+      x: (cx - r.left) * (W / r.width),
+      y: (cy - r.top) * (H / r.height),
+    };
+  }
+
+  cv.addEventListener("pointerdown", function (e) {
+    const p = clientPos(e);
+    const c = cellAt(p.x, p.y);
+    if (c.y >= ROWS) return;
+    placeMachine(c.x, c.y, selected);
+  });
+
+  document.getElementById("btnSell").addEventListener("click", function () {
+    if (stock <= 0) {
+      toast("Nessun prodotto in magazzino!");
+      return;
+    }
+    const gain = stock * 20;
+    money += gain;
+    stock = 0;
+    toast("Venduto! +" + gain + " 💰");
+    paintHud();
+  });
+
+  document.getElementById("btnDel").addEventListener("click", function () {
+    selected = "delete";
+    buildTools();
+    toast("Clicca una macchina per rimuoverla");
+  });
+
+  initGrid();
+  grid[2][2] = { id: "miner", color: "#868e96", ico: "⛏️", timer: 0, progress: 0 };
+  buildTools();
+  paintHud();
+  toast("🏭 Benvenuto! Piazza un minatore e una pressa vicini.");
+  requestAnimationFrame(loop);
+})();
+  </script>
+</body>
+</html>

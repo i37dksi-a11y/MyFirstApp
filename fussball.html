@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Mini calcio · Fußballspiel</title>
+  <style>
+    :root {
+      --bg: #0e1410;
+      --card: #162018;
+      --text: #e8f0ea;
+      --muted: #8aa892;
+      --line: rgba(255,255,255,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      background: radial-gradient(ellipse 90% 60% at 50% 0%, #1e3d28 0%, var(--bg) 55%);
+      color: var(--text);
+      padding: 0.75rem 1rem 1.5rem;
+      line-height: 1.45;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 0.35rem; }
+    .sub { color: var(--muted); font-size: 0.88rem; margin: 0 0 1rem; max-width: 520px; }
+    .setup {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      max-width: 440px;
+      margin-bottom: 0.75rem;
+    }
+    .row { margin: 0.5rem 0; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    label { font-weight: 600; }
+    select {
+      padding: 0.4rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #1f2e24;
+      color: var(--text);
+    }
+    .btn {
+      margin-top: 0.5rem;
+      padding: 0.75rem 1.25rem;
+      border: none;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      background: linear-gradient(180deg, #51cf66, #2f9e44);
+      color: #0d1f12;
+      box-shadow: 0 4px 0 #1e6b32;
+      font-size: 1rem;
+      width: 100%;
+      max-width: 440px;
+    }
+    .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1e6b32; }
+    #wrap {
+      position: relative;
+      width: 100%;
+      max-width: min(96vw, 640px);
+      margin: 0 auto;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+      border: 3px solid rgba(255,255,255,0.1);
+      touch-action: none;
+      background: #2d6b3f;
+    }
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      max-width: min(96vw, 640px);
+      margin: 0.5rem auto 0;
+      font-weight: 700;
+    }
+    #score { font-size: 1.5rem; letter-spacing: 0.05em; }
+    #hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      max-width: 640px;
+      margin-top: 0.65rem;
+    }
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 1rem;
+    }
+    #overlay.on { display: flex; }
+    #overlay .card {
+      background: var(--card);
+      padding: 1.5rem;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 340px;
+      border: 2px solid #51cf66;
+    }
+    nav { margin-top: 1rem; font-size: 0.82rem; color: var(--muted); }
+    nav a { color: #69db7c; }
+  </style>
+</head>
+<body>
+  <h1>⚽ Mini calcio</h1>
+  <p style="font-size:0.82rem;color:var(--muted);margin:-0.2rem 0 0.5rem;">Fußballspiel · due squadre, una palla, due porte</p>
+  <p class="sub">
+    Campo dall’alto: spingi la palla dentro la porta avversaria. Partita a <strong>5 gol</strong> o fino allo stop.
+    Modalità <strong>due giocatori</strong> sullo stesso schermo oppure <strong>tu contro il computer</strong>.
+  </p>
+
+  <div class="setup" id="setupPanel">
+    <div class="row">
+      <label for="modeSel">Modalità</label>
+      <select id="modeSel">
+        <option value="cpu">1 giocatore vs computer</option>
+        <option value="2p">2 giocatori (locale)</option>
+      </select>
+    </div>
+    <button type="button" class="btn" id="btnStart">Inizia partita</button>
+  </div>
+
+  <div id="hud" style="display:none;">
+    <span id="score">0 — 0</span>
+    <span id="timer" style="font-size:1.1rem;color:#ffd43b;">4:00</span>
+  </div>
+  <div id="wrap" style="display:none;">
+    <canvas id="cv" width="560" height="360" aria-label="Campo da calcio"></canvas>
+  </div>
+  <p id="hint" style="display:none;"></p>
+
+  <div id="overlay">
+    <div class="card">
+      <h2 id="endTitle" style="margin:0 0 0.5rem;color:#69db7c;">Fine partita</h2>
+      <p id="endMsg"></p>
+      <button type="button" class="btn" id="btnAgain" style="margin-top:1rem;">Gioca ancora</button>
+    </div>
+  </div>
+
+  <nav><a href="entra.html">← Entra</a></nav>
+
+  <script>
+    const W = 560,
+      H = 360;
+    const GOAL_W = 28;
+    const GOAL_H = 110;
+    const GOAL_TOP = (H - GOAL_H) / 2;
+    const GOAL_BOT = GOAL_TOP + GOAL_H;
+    const R_PL = 22;
+    const R_BALL = 9;
+    const MAX_P_SPD = 5.2;
+    const BALL_FRICT = 0.988;
+    const WALL_BOUNCE = 0.72;
+    const MATCH_SEC = 240;
+    const WIN_GOLS = 5;
+
+    let mode = "cpu";
+    let canvas, ctx;
+    let p1 = { x: 120, y: H / 2, vx: 0, vy: 0 };
+    let p2 = { x: W - 120, y: H / 2, vx: 0, vy: 0 };
+    let ball = { x: W / 2, y: H / 2, vx: 0, vy: 0 };
+    let keys = {};
+    let score1 = 0,
+      score2 = 0;
+    let timeLeft = MATCH_SEC;
+    let running = false;
+    let lastT = 0;
+    let rafId = 0;
+
+    function rectGoalLeft() {
+      return ball.x - R_BALL < GOAL_W && ball.y > GOAL_TOP && ball.y < GOAL_BOT;
+    }
+    function rectGoalRight() {
+      return ball.x + R_BALL > W - GOAL_W && ball.y > GOAL_TOP && ball.y < GOAL_BOT;
+    }
+
+    function resetKickoff(scorerIsLeft) {
+      ball.x = W / 2;
+      ball.y = H / 2;
+      ball.vx = scorerIsLeft ? -1.2 : 1.2;
+      ball.vy = (Math.random() - 0.5) * 2;
+      p1.x = 120;
+      p1.y = H / 2;
+      p2.x = W - 120;
+      p2.y = H / 2;
+      p1.vx = p1.vy = p2.vx = p2.vy = 0;
+    }
+
+    function clamp(v, lo, hi) {
+      return Math.max(lo, Math.min(hi, v));
+    }
+
+    function sepCircles(ax, ay, bx, by, ra, rb) {
+      const dx = bx - ax,
+        dy = by - ay;
+      const d = Math.sqrt(dx * dx + dy * dy) || 0.001;
+      const minD = ra + rb;
+      if (d >= minD) return;
+      const nx = dx / d,
+        ny = dy / d;
+      const push = (minD - d) * 0.52;
+      ax -= nx * push * 0.5;
+      ay -= ny * push * 0.5;
+      bx += nx * push * 0.5;
+      by += ny * push * 0.5;
+      return { ax, ay, bx, by, nx, ny };
+    }
+
+    function collidePlayerBall(px, py, pvx, pvy) {
+      const dx = ball.x - px,
+        dy = ball.y - py;
+      const d = Math.sqrt(dx * dx + dy * dy) || 0.001;
+      const minD = R_PL + R_BALL;
+      if (d >= minD) return;
+      const nx = dx / d,
+        ny = dy / d;
+      const overlap = minD - d;
+      ball.x += nx * overlap * 0.65;
+      ball.y += ny * overlap * 0.65;
+      px -= nx * overlap * 0.35;
+      py -= ny * overlap * 0.35;
+      const rel = Math.sqrt(pvx * pvx + pvy * pvy);
+      const kick = 4.8 + rel * 0.85;
+      ball.vx += nx * kick;
+      ball.vy += ny * kick;
+      ball.vx = clamp(ball.vx, -14, 14);
+      ball.vy = clamp(ball.vy, -14, 14);
+      return { px, py };
+    }
+
+    function collidePlayers() {
+      const r = sepCircles(p1.x, p1.y, p2.x, p2.y, R_PL, R_PL);
+      if (r) {
+        p1.x = r.ax;
+        p1.y = r.ay;
+        p2.x = r.bx;
+        p2.y = r.by;
+      }
+    }
+
+    function aiMove(dt) {
+      const bx = ball.x,
+        by = ball.y;
+      let tx = bx,
+        ty = by;
+      const gx = 28;
+      const gy = H / 2;
+      const dx = bx - p2.x,
+        dy = by - p2.y;
+      const db = Math.sqrt(dx * dx + dy * dy) || 1;
+      if (db < 95 && ball.x > W * 0.35) {
+        tx = gx + (bx - gx) * 0.15;
+        ty = gy + (by - gy) * 0.15;
+      }
+      let ax = tx - p2.x,
+        ay = ty - p2.y;
+      const al = Math.sqrt(ax * ax + ay * ay) || 1;
+      ax /= al;
+      ay /= al;
+      const mult = 0.42 * (dt / 16);
+      p2.vx += ax * mult;
+      p2.vy += ay * mult;
+    }
+
+    function humanMove(p, up, down, left, right, dt) {
+      let ax = 0,
+        ay = 0;
+      if (keys[up]) ay -= 1;
+      if (keys[down]) ay += 1;
+      if (keys[left]) ax -= 1;
+      if (keys[right]) ax += 1;
+      if (ax !== 0 || ay !== 0) {
+        const l = Math.sqrt(ax * ax + ay * ay);
+        ax /= l;
+        ay /= l;
+        const mult = 0.52 * (dt / 16);
+        p.vx += ax * mult;
+        p.vy += ay * mult;
+      }
+    }
+
+    function physics(dt) {
+      const fr = Math.pow(0.89, dt / 16);
+      humanMove(p1, "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", dt);
+      if (mode === "2p") {
+        humanMove(p2, "KeyW", "KeyS", "KeyA", "KeyD", dt);
+      } else {
+        aiMove(dt);
+      }
+
+      for (const p of [p1, p2]) {
+        p.vx *= fr;
+        p.vy *= fr;
+        const sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        const cap = MAX_P_SPD * (dt / 16);
+        if (sp > cap) {
+          p.vx = (p.vx / sp) * cap;
+          p.vy = (p.vy / sp) * cap;
+        }
+        p.x += p.vx * (dt / 16);
+        p.y += p.vy * (dt / 16);
+        p.x = clamp(p.x, R_PL + GOAL_W + 4, W - R_PL - GOAL_W - 4);
+        p.y = clamp(p.y, R_PL + 4, H - R_PL - 4);
+      }
+
+      let r1 = collidePlayerBall(p1.x, p1.y, p1.vx, p1.vy);
+      if (r1) {
+        p1.x = r1.px;
+        p1.y = r1.py;
+      }
+      let r2 = collidePlayerBall(p2.x, p2.y, p2.vx, p2.vy);
+      if (r2) {
+        p2.x = r2.px;
+        p2.y = r2.py;
+      }
+
+      collidePlayers();
+
+      ball.vx *= BALL_FRICT;
+      ball.vy *= BALL_FRICT;
+      ball.x += ball.vx * (dt / 16);
+      ball.y += ball.vy * (dt / 16);
+
+      if (ball.y - R_BALL < 0) {
+        ball.y = R_BALL;
+        ball.vy *= -WALL_BOUNCE;
+      }
+      if (ball.y + R_BALL > H) {
+        ball.y = H - R_BALL;
+        ball.vy *= -WALL_BOUNCE;
+      }
+      if (ball.x - R_BALL < GOAL_W) {
+        if (ball.y <= GOAL_TOP || ball.y >= GOAL_BOT) {
+          ball.x = GOAL_W + R_BALL;
+          ball.vx *= -WALL_BOUNCE;
+        }
+      }
+      if (ball.x + R_BALL > W - GOAL_W) {
+        if (ball.y <= GOAL_TOP || ball.y >= GOAL_BOT) {
+          ball.x = W - GOAL_W - R_BALL;
+          ball.vx *= -WALL_BOUNCE;
+        }
+      }
+
+      if (rectGoalLeft()) {
+        score2 += 1;
+        resetKickoff(true);
+        checkEnd();
+      } else if (rectGoalRight()) {
+        score1 += 1;
+        resetKickoff(false);
+        checkEnd();
+      }
+
+      document.getElementById("score").textContent = score1 + " — " + score2;
+    }
+
+    function checkEnd() {
+      if (score1 >= WIN_GOLS || score2 >= WIN_GOLS) {
+        endMatch(score1 > score2 ? 1 : score1 < score2 ? 2 : 0);
+        return;
+      }
+    }
+
+    function endMatch(winner) {
+      running = false;
+      cancelAnimationFrame(rafId);
+      const m = document.getElementById("endMsg");
+      if (winner === 0) m.textContent = "Pareggio!";
+      else if (winner === 1)
+        m.innerHTML = mode === "cpu" ? "Hai vinto! 🏆" : "Vince il <strong>rosso</strong>!";
+      else m.innerHTML = mode === "cpu" ? "Ha vinto il computer. Riprova!" : "Vince il <strong>blu</strong>!";
+      document.getElementById("overlay").classList.add("on");
+    }
+
+    function drawField() {
+      ctx.fillStyle = "#2f7d44";
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(4, 4, W - 8, H - 8);
+      ctx.beginPath();
+      ctx.moveTo(W / 2, 4);
+      ctx.lineTo(W / 2, H - 4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, 48, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeRect(GOAL_W, GOAL_TOP, 52, GOAL_H);
+      ctx.strokeRect(W - GOAL_W - 52, GOAL_TOP, 52, GOAL_H);
+      ctx.fillStyle = "rgba(0,0,0,0.2)";
+      ctx.fillRect(0, GOAL_TOP, GOAL_W, GOAL_H);
+      ctx.fillRect(W - GOAL_W, GOAL_TOP, GOAL_W, GOAL_H);
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.font = "bold 11px system-ui,sans-serif";
+      ctx.fillText("PORTA", 6, GOAL_TOP - 6);
+      ctx.fillText("PORTA", W - 44, GOAL_TOP - 6);
+    }
+
+    function drawBall() {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, R_BALL, 0, Math.PI * 2);
+      const g = ctx.createRadialGradient(ball.x - 3, ball.y - 3, 1, ball.x, ball.y, R_BALL);
+      g.addColorStop(0, "#fff");
+      g.addColorStop(0.4, "#f5f5f5");
+      g.addColorStop(1, "#ccc");
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.25)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.strokeStyle = "#222";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(ball.x - 4, ball.y);
+      ctx.lineTo(ball.x + 4, ball.y);
+      ctx.moveTo(ball.x, ball.y - 4);
+      ctx.lineTo(ball.x, ball.y + 4);
+      ctx.stroke();
+    }
+
+    function drawPlayer(p, fill, label) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R_PL, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.45)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 14px system-ui,sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, p.x, p.y + 1);
+    }
+
+    function loop(now) {
+      if (!running) return;
+      const dt = Math.min(40, now - lastT);
+      lastT = now;
+      timeLeft -= dt / 1000;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        document.getElementById("timer").textContent = "0:00";
+        if (score1 === score2) endMatch(0);
+        else endMatch(score1 > score2 ? 1 : 2);
+        return;
+      }
+      const m = Math.floor(timeLeft / 60);
+      const s = Math.floor(timeLeft % 60);
+      document.getElementById("timer").textContent = m + ":" + (s < 10 ? "0" : "") + s;
+      physics(dt);
+      drawField();
+      drawPlayer(p1, "#e03131", "1");
+      drawPlayer(p2, "#228be6", mode === "cpu" ? "🤖" : "2");
+      drawBall();
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function startGame() {
+      mode = document.getElementById("modeSel").value;
+      score1 = score2 = 0;
+      timeLeft = MATCH_SEC;
+      resetKickoff(Math.random() > 0.5);
+      document.getElementById("setupPanel").style.display = "none";
+      document.getElementById("hud").style.display = "flex";
+      document.getElementById("wrap").style.display = "block";
+      document.getElementById("hint").style.display = "block";
+      document.getElementById("hint").innerHTML =
+        mode === "2p"
+          ? "<strong>Rosso:</strong> frecce · <strong>Blu:</strong> W A S D"
+          : "<strong>Tu (rosso):</strong> frecce · Il blu è il computer";
+      canvas = document.getElementById("cv");
+      ctx = canvas.getContext("2d");
+      running = true;
+      lastT = performance.now();
+      document.getElementById("overlay").classList.remove("on");
+      document.getElementById("score").textContent = "0 — 0";
+      rafId = requestAnimationFrame(loop);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      keys[e.code] = true;
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code))
+        e.preventDefault();
+    });
+    window.addEventListener("keyup", (e) => {
+      keys[e.code] = false;
+    });
+
+    document.getElementById("btnStart").onclick = startGame;
+    document.getElementById("btnAgain").onclick = () => {
+      document.getElementById("overlay").classList.remove("on");
+      document.getElementById("setupPanel").style.display = "block";
+      document.getElementById("hud").style.display = "none";
+      document.getElementById("wrap").style.display = "none";
+      document.getElementById("hint").style.display = "none";
+      running = false;
+      cancelAnimationFrame(rafId);
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Mini basket · Basketball</title>
+  <style>
+    :root {
+      --bg: #1a1510;
+      --card: #252018;
+      --text: #f2ebe4;
+      --muted: #b8a995;
+      --line: rgba(255,255,255,0.1);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      background: radial-gradient(ellipse 90% 60% at 50% 0%, #3d2818 0%, var(--bg) 55%);
+      color: var(--text);
+      padding: 0.75rem 1rem 1.5rem;
+      line-height: 1.45;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
+    .tag { font-size: 0.82rem; color: var(--muted); margin: 0 0 0.6rem; }
+    .sub { color: var(--muted); font-size: 0.88rem; margin: 0 0 1rem; max-width: 520px; }
+    .setup {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      max-width: 440px;
+      margin-bottom: 0.75rem;
+    }
+    .btn {
+      padding: 0.75rem 1.25rem;
+      border: none;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      background: linear-gradient(180deg, #fd7e14, #e8590c);
+      color: #fff;
+      box-shadow: 0 4px 0 #c2410c;
+      font-size: 1rem;
+      width: 100%;
+      max-width: 440px;
+    }
+    .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #c2410c; }
+    #wrap {
+      position: relative;
+      width: 100%;
+      max-width: min(96vw, 440px);
+      margin: 0 auto;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 14px;
+      box-shadow: 0 14px 44px rgba(0,0,0,0.5);
+      border: 3px solid rgba(255,255,255,0.12);
+      touch-action: none;
+      background: #6b4423;
+    }
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      max-width: min(96vw, 440px);
+      margin: 0.5rem auto 0;
+      font-weight: 700;
+    }
+    #hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      max-width: 440px;
+      margin-top: 0.65rem;
+    }
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 1rem;
+    }
+    #overlay.on { display: flex; }
+    #overlay .card {
+      background: var(--card);
+      padding: 1.5rem;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 320px;
+      border: 2px solid #fd7e14;
+    }
+    nav { margin-top: 1rem; font-size: 0.82rem; color: var(--muted); }
+    nav a { color: #ffa94d; }
+  </style>
+</head>
+<body>
+  <h1>🏀 Mini basket</h1>
+  <p class="tag">Basketballspiel · tiri a canestro</p>
+  <p class="sub">
+    Vista laterale: muovi il giocatore con le <strong>frecce</strong> (o <strong>A / D</strong>), lancia con <strong>Spazio</strong>.
+    Segna più canestri possibile prima che finisca il tempo. La palla rimbalza sul parquet.
+  </p>
+
+  <div class="setup" id="setupPanel">
+    <button type="button" class="btn" id="btnStart">Inizia</button>
+  </div>
+
+  <div id="hud" style="display:none;">
+    <span id="pts">Canestri: 0</span>
+    <span id="clock" style="font-size:1.15rem;color:#ffd43b;">1:00</span>
+  </div>
+  <div id="wrap" style="display:none;">
+    <canvas id="cv" width="420" height="520" aria-label="Campo da basket"></canvas>
+  </div>
+  <p id="hint" style="display:none;">
+    <strong>← →</strong> o <strong>A D</strong> · <strong>Spazio</strong> = tiro (con la palla)
+  </p>
+
+  <div id="overlay">
+    <div class="card">
+      <h2 id="endTitle" style="margin:0 0 0.5rem;color:#ffa94d;">Tempo!</h2>
+      <p id="endMsg"></p>
+      <button type="button" class="btn" id="btnAgain" style="margin-top:1rem;">Gioca ancora</button>
+    </div>
+  </div>
+
+  <nav><a href="entra.html">← Entra</a></nav>
+
+  <script>
+    const W = 420,
+      H = 520;
+    const FLOOR_Y = H - 72;
+    const G = 0.42;
+    const CX = W / 2;
+    const RIM_Y = 118;
+    const RIM_HALF = 34;
+    const BACK_X0 = CX - 52;
+    const BACK_X1 = CX + 52;
+    const R_BALL = 9;
+    const PL_W = 44,
+      PL_H = 18;
+    const MATCH_SEC = 60;
+
+    let canvas, ctx;
+    let keys = {};
+    let px = CX;
+    let ball = { x: CX, y: FLOOR_Y - 35, vx: 0, vy: 0 };
+    let held = true;
+    let prevBallY = FLOOR_Y - 35;
+    let scoredFly = false;
+    let baskets = 0;
+    let timeLeft = MATCH_SEC;
+    let running = false;
+    let lastT = 0;
+    let rafId = 0;
+    let spaceLatch = false;
+
+    function clamp(v, a, b) {
+      return Math.max(a, Math.min(b, v));
+    }
+
+    function resetBallHeld() {
+      held = true;
+      scoredFly = false;
+      ball.vx = ball.vy = 0;
+      ball.x = px;
+      ball.y = FLOOR_Y - 42;
+      prevBallY = ball.y;
+    }
+
+    function shoot() {
+      if (!held || !running || spaceLatch) return;
+      spaceLatch = true;
+      held = false;
+      scoredFly = false;
+      const aim = CX + (px - CX) * 0.55;
+      const dx = aim - ball.x;
+      const dy = RIM_Y + 8 - ball.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const power = 12.8;
+      ball.vx = (dx / len) * power;
+      ball.vy = (dy / len) * power * 0.95;
+    }
+
+    function physics(dt) {
+      const k = dt / 16;
+      let ax = 0;
+      if (keys["ArrowLeft"] || keys["KeyA"]) ax -= 1;
+      if (keys["ArrowRight"] || keys["KeyD"]) ax += 1;
+      px += ax * 5.8 * k;
+      px = clamp(px, 56, W - 56);
+
+      if (held) {
+        ball.x = px;
+        ball.y = FLOOR_Y - 42;
+        ball.vx = ball.vy = 0;
+        prevBallY = ball.y;
+        return;
+      }
+
+      prevBallY = ball.y;
+      ball.vy += G * k;
+      ball.x += ball.vx * k;
+      ball.y += ball.vy * k;
+
+      if (ball.x - R_BALL < 8) {
+        ball.x = 8 + R_BALL;
+        ball.vx *= -0.62;
+      }
+      if (ball.x + R_BALL > W - 8) {
+        ball.x = W - 8 - R_BALL;
+        ball.vx *= -0.62;
+      }
+
+      if (ball.y + R_BALL > FLOOR_Y) {
+        ball.y = FLOOR_Y - R_BALL;
+        ball.vy *= -0.52;
+        ball.vx *= 0.92;
+        if (Math.abs(ball.vy) < 1.2 && Math.abs(ball.vx) < 0.8) {
+          ball.vy = 0;
+          ball.vx *= 0.85;
+        }
+      }
+
+      if (ball.y - R_BALL < RIM_Y + 22 && ball.y > RIM_Y - 40) {
+        if (ball.x > BACK_X0 && ball.x < CX - RIM_HALF - 4) {
+          ball.x = BACK_X0 - R_BALL;
+          ball.vx *= -0.55;
+        }
+        if (ball.x < BACK_X1 && ball.x > CX + RIM_HALF + 4) {
+          ball.x = BACK_X1 + R_BALL;
+          ball.vx *= -0.55;
+        }
+      }
+
+      if (
+        !scoredFly &&
+        prevBallY < RIM_Y &&
+        ball.y >= RIM_Y &&
+        ball.vy > 0 &&
+        Math.abs(ball.x - CX) < RIM_HALF - 2
+      ) {
+        scoredFly = true;
+        baskets += 1;
+        document.getElementById("pts").textContent = "Canestri: " + baskets;
+      }
+
+      if (!held && ball.y > FLOOR_Y + 60) {
+        resetBallHeld();
+      }
+    }
+
+    function drawCourt() {
+      const grd = ctx.createLinearGradient(0, 0, 0, H);
+      grd.addColorStop(0, "#4a3728");
+      grd.addColorStop(0.45, "#6b4423");
+      grd.addColorStop(1, "#5c3d2e");
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "rgba(0,0,0,0.15)";
+      ctx.fillRect(0, FLOOR_Y, W, H - FLOOR_Y);
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(8, FLOOR_Y);
+      ctx.lineTo(W - 8, FLOOR_Y);
+      ctx.stroke();
+      ctx.strokeRect(CX - 80, FLOOR_Y - 120, 160, 110);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      ctx.fillRect(BACK_X0 - 6, RIM_Y - 68, 112, 64);
+      ctx.strokeStyle = "#333";
+      ctx.strokeRect(BACK_X0 - 6, RIM_Y - 68, 112, 64);
+      ctx.strokeStyle = "#ff6b00";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(CX - RIM_HALF, RIM_Y);
+      ctx.lineTo(CX + RIM_HALF, RIM_Y);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(255,255,255,0.25)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(CX, RIM_Y);
+      ctx.lineTo(CX, RIM_Y + 42);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      ctx.beginPath();
+      ctx.ellipse(CX, RIM_Y + 28, 26, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = "#339af0";
+      ctx.fillRect(px - PL_W / 2, FLOOR_Y - PL_H, PL_W, PL_H);
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.strokeRect(px - PL_W / 2, FLOOR_Y - PL_H, PL_W, PL_H);
+      ctx.fillStyle = "#ffe066";
+      ctx.beginPath();
+      ctx.arc(px, FLOOR_Y - PL_H - 14, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function drawBall() {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, R_BALL, 0, Math.PI * 2);
+      const g = ctx.createRadialGradient(ball.x - 3, ball.y - 3, 1, ball.x, ball.y, R_BALL);
+      g.addColorStop(0, "#fff8e8");
+      g.addColorStop(0.55, "#f08c00");
+      g.addColorStop(1, "#c2410c");
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.strokeStyle = "#222";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ball.x - 5, ball.y);
+      ctx.lineTo(ball.x + 5, ball.y);
+      ctx.stroke();
+    }
+
+    function loop(now) {
+      if (!running) return;
+      const dt = Math.min(45, now - lastT);
+      lastT = now;
+      timeLeft -= dt / 1000;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        running = false;
+        cancelAnimationFrame(rafId);
+        document.getElementById("clock").textContent = "0:00";
+        document.getElementById("endMsg").innerHTML =
+          "Hai segnato <strong>" + baskets + "</strong> canestr" + (baskets === 1 ? "o" : "i") + "!";
+        document.getElementById("overlay").classList.add("on");
+        return;
+      }
+      const m = Math.floor(timeLeft / 60);
+      const s = Math.floor(timeLeft % 60);
+      document.getElementById("clock").textContent = m + ":" + (s < 10 ? "0" : "") + s;
+
+      physics(dt);
+      drawCourt();
+      drawPlayer();
+      drawBall();
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function startGame() {
+      baskets = 0;
+      spaceLatch = false;
+      timeLeft = MATCH_SEC;
+      px = CX;
+      resetBallHeld();
+      document.getElementById("pts").textContent = "Canestri: 0";
+      document.getElementById("setupPanel").style.display = "none";
+      document.getElementById("hud").style.display = "flex";
+      document.getElementById("wrap").style.display = "block";
+      document.getElementById("hint").style.display = "block";
+      document.getElementById("overlay").classList.remove("on");
+      canvas = document.getElementById("cv");
+      ctx = canvas.getContext("2d");
+      running = true;
+      lastT = performance.now();
+      rafId = requestAnimationFrame(loop);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      keys[e.code] = true;
+      if (e.code === "Space") {
+        e.preventDefault();
+        shoot();
+      }
+    });
+    window.addEventListener("keyup", (e) => {
+      keys[e.code] = false;
+      if (e.code === "Space") spaceLatch = false;
+    });
+
+    document.getElementById("btnStart").onclick = startGame;
+    document.getElementById("btnAgain").onclick = () => {
+      document.getElementById("overlay").classList.remove("on");
+      document.getElementById("setupPanel").style.display = "block";
+      document.getElementById("hud").style.display = "none";
+      document.getElementById("wrap").style.display = "none";
+      document.getElementById("hint").style.display = "none";
+      running = false;
+      cancelAnimationFrame(rafId);
+    };
+  </script>
+</body>
+</html>

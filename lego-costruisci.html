@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>LEGO — Costruisci e Battaglia!</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #87ceeb 0%, #e8f4fc 45%, #f5f0e6 100%);
+      color: #1a1a2e;
+      padding: 0.65rem 0.75rem 1rem;
+      touch-action: manipulation;
+    }
+    body.battle-mode {
+      background: linear-gradient(180deg, #2b1215 0%, #1a0a0c 50%, #0f0f0f 100%);
+      color: #ffe8e8;
+    }
+    h1 { margin: 0 0 0.25rem; text-align: center; font-size: 1.2rem; color: #e03131; text-shadow: 1px 1px 0 #fff; }
+    body.battle-mode h1 { color: #ff8787; text-shadow: 0 0 12px rgba(255,0,0,0.4); }
+    .sub { text-align: center; font-size: 0.8rem; color: #495057; margin: 0 0 0.65rem; line-height: 1.4; }
+    body.battle-mode .sub { color: #c92a2a; }
+    #wrap {
+      max-width: 720px; margin: 0 auto; border-radius: 16px; overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15); border: 3px solid #ffd43b; background: #fff;
+    }
+    body.battle-mode #wrap { border-color: #e03131; box-shadow: 0 0 24px rgba(255,0,0,0.25); }
+    canvas { display: block; width: 100%; height: auto; touch-action: none; cursor: crosshair; background: #f8f9fa; }
+    .panel {
+      max-width: 720px; margin: 0.65rem auto 0; background: #fff; border-radius: 14px;
+      padding: 0.75rem; border: 2px solid #dee2e6;
+    }
+    body.battle-mode .panel { background: #2b1215; border-color: #862e2e; }
+    .mission { font-size: 0.88rem; font-weight: 700; color: #1864ab; margin: 0 0 0.5rem; }
+    body.battle-mode .mission { color: #ff8787; }
+    .mission small { display: block; font-weight: 500; color: #868e96; font-size: 0.76rem; margin-top: 0.2rem; }
+    body.battle-mode .mission small { color: #ffa8a8; }
+    .palette { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.55rem; }
+    .brick-btn, .unit-btn {
+      border: 2px solid #333; border-radius: 8px; padding: 0.35rem 0.5rem;
+      font-size: 0.72rem; font-weight: 700; cursor: pointer; color: #fff;
+      text-shadow: 0 1px 1px rgba(0,0,0,0.4); min-width: 52px;
+    }
+    .brick-btn.sel, .unit-btn.sel { outline: 3px solid #ffd43b; transform: scale(1.05); }
+    body.battle-mode .unit-btn.sel { outline-color: #ff8787; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+    button.act {
+      padding: 0.5rem 0.75rem; border: none; border-radius: 10px; font-weight: 700;
+      font-size: 0.78rem; cursor: pointer; background: linear-gradient(180deg, #51cf66, #2f9e44);
+      color: #fff; box-shadow: 0 3px 0 #1e6b32;
+    }
+    button.act.sec { background: linear-gradient(180deg, #74c0fc, #339af0); box-shadow: 0 3px 0 #1864ab; }
+    button.act.warn { background: linear-gradient(180deg, #ff8787, #e03131); box-shadow: 0 3px 0 #9b1c1c; }
+    button.act.battle { background: linear-gradient(180deg, #ff922b, #e8590c); box-shadow: 0 3px 0 #9c3d0c; }
+    button.act:active { transform: translateY(2px); box-shadow: none; }
+    .score { margin-left: auto; font-size: 0.82rem; font-weight: 700; color: #e03131; }
+    body.battle-mode .score { color: #ff8787; }
+    .toast {
+      position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+      background: #1864ab; color: #fff; padding: 0.55rem 1rem; border-radius: 999px;
+      font-weight: 700; font-size: 0.85rem; z-index: 20; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    }
+    .toast.on { opacity: 1; }
+    nav { text-align: center; margin-top: 0.75rem; font-size: 0.82rem; }
+    nav a { color: #1864ab; font-weight: 600; }
+    body.battle-mode nav a { color: #ff8787; }
+    .hint { font-size: 0.72rem; color: #868e96; margin: 0.45rem 0 0; }
+    body.battle-mode .hint { color: #ffa8a8; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1 id="title">🧱 LEGO — Costruisci!</h1>
+  <p class="sub" id="subText">Costruisci con i mattoni, poi trasforma tutto in un campo di battaglia!</p>
+  <div id="wrap">
+    <canvas id="cv" width="640" height="420" aria-label="LEGO battaglia"></canvas>
+  </div>
+  <div class="panel">
+    <p class="mission" id="missionText">Fase 1: costruisci la tua base 🏗️<small>Piazza almeno 6 mattoni, poi vai in battaglia.</small></p>
+    <div class="palette" id="palette"></div>
+    <div class="palette" id="unitPalette" hidden></div>
+    <div class="row">
+      <button type="button" class="act battle" id="btnBattle">⚔️ Campo di battaglia!</button>
+      <button type="button" class="act sec" id="btnBuild" hidden>🔧 Torna a costruire</button>
+      <button type="button" class="act sec" id="btnMission">Cambia missione</button>
+      <button type="button" class="act warn" id="btnClear">Cancella tutto</button>
+      <span class="score" id="scoreText">Pezzi: <strong id="count">0</strong></span>
+    </div>
+    <p class="hint" id="hintText">Clic per posare mattoni · trascina per spostare · <kbd>R</kbd> ruota</p>
+  </div>
+  <div class="toast" id="toast"></div>
+  <nav><a href="app.html">← MyFirstApp</a></nav>
+
+  <script>
+(function () {
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const GRID = 20, BASE_Y = H - 56;
+
+  const BRICK_TYPES = [
+    { id: "2x4", w: 4, h: 2, color: "#e03131", label: "2×4 rosso" },
+    { id: "2x2", w: 2, h: 2, color: "#ffd43b", label: "2×2 giallo" },
+    { id: "1x4", w: 4, h: 1, color: "#339af0", label: "1×4 blu" },
+    { id: "1x2", w: 2, h: 1, color: "#51cf66", label: "1×2 verde" },
+    { id: "1x1", w: 1, h: 1, color: "#ff922b", label: "1×1 arancio" },
+    { id: "plate", w: 4, h: 2, color: "#74c0fc", label: "Piastra", plate: true },
+    { id: "slope", w: 2, h: 2, color: "#868e96", label: "Muro grigio", slope: true },
+  ];
+
+  const UNIT_TYPES = [
+    { id: "soldier", label: "⚔️ Soldato", team: "blue", hp: 30, dmg: 8, range: 28, speed: 1.2 },
+    { id: "archer", label: "🏹 Arciere", team: "blue", hp: 20, dmg: 10, range: 90, speed: 0.9 },
+    { id: "knight", label: "🛡️ Cavaliere", team: "blue", hp: 50, dmg: 12, range: 30, speed: 1.0 },
+    { id: "enemy", label: "💀 Nemico", team: "red", hp: 25, dmg: 7, range: 28, speed: 1.1 },
+    { id: "boss", label: "👹 Capo", team: "red", hp: 70, dmg: 14, range: 35, speed: 0.8 },
+  ];
+
+  let mode = "build";
+  let pieces = [];
+  let units = [];
+  let particles = [];
+  let selectedType = BRICK_TYPES[0];
+  let selectedUnit = UNIT_TYPES[0];
+  let drag = null;
+  let dragUnit = null;
+  let ghostRot = 0;
+  let pointer = { x: W / 2, y: H / 2 };
+  let frame = 0;
+  let battleTimer = 0;
+
+  function snap(v) { return Math.round(v / GRID) * GRID; }
+
+  function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("on");
+    setTimeout(function () { t.classList.remove("on"); }, 2800);
+  }
+
+  function brickDims(type, rot) {
+    const r = rot % 2;
+    return { gw: r ? type.h : type.w, gh: r ? type.w : type.h };
+  }
+
+  function buildPalette() {
+    const box = document.getElementById("palette");
+    box.innerHTML = "";
+    BRICK_TYPES.forEach(function (t) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "brick-btn" + (selectedType.id === t.id ? " sel" : "");
+      btn.style.background = t.color;
+      btn.textContent = t.label;
+      btn.addEventListener("click", function () { selectedType = t; buildPalette(); });
+      box.appendChild(btn);
+    });
+  }
+
+  function buildUnitPalette() {
+    const box = document.getElementById("unitPalette");
+    box.innerHTML = "";
+    UNIT_TYPES.forEach(function (u) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "unit-btn" + (selectedUnit.id === u.id ? " sel" : "");
+      btn.style.background = u.team === "blue" ? "#1864ab" : "#c92a2a";
+      btn.textContent = u.label;
+      btn.addEventListener("click", function () { selectedUnit = u; buildUnitPalette(); });
+      box.appendChild(btn);
+    });
+  }
+
+  function enterBattle() {
+    if (pieces.length < 6) {
+      toast("Servono almeno 6 mattoni per la battaglia!");
+      return;
+    }
+    mode = "battle";
+    document.body.classList.add("battle-mode");
+    document.getElementById("title").textContent = "⚔️ CAMPO DI BATTAGLIA LEGO";
+    document.getElementById("subText").textContent = "La tua costruzione è diventata un campo di guerra!";
+    document.getElementById("missionText").innerHTML =
+      "Fase 2: piazza i personaggi!<small>Clicca sui mattoni per mettere soldati (blu) e nemici (rossi). Poi combattete!</small>";
+    document.getElementById("palette").hidden = true;
+    document.getElementById("unitPalette").hidden = false;
+    document.getElementById("btnBattle").hidden = true;
+    document.getElementById("btnBuild").hidden = false;
+    document.getElementById("btnMission").hidden = true;
+    document.getElementById("hintText").textContent =
+      "Clic sui mattoni per piazzare personaggi · trascina per spostarli · i blu attaccano i rossi!";
+    spawnInitialEnemies();
+    toast("⚔️ CAMPO DI BATTAGLIA ATTIVO! Piazza i tuoi eroi!");
+    updateScore();
+  }
+
+  function enterBuild() {
+    mode = "build";
+    document.body.classList.remove("battle-mode");
+    document.getElementById("title").textContent = "🧱 LEGO — Costruisci!";
+    document.getElementById("subText").textContent = "Costruisci con i mattoni, poi trasforma tutto in un campo di battaglia!";
+    document.getElementById("missionText").innerHTML =
+      "Fase 1: costruisci la tua base 🏗️<small>Piazza almeno 6 mattoni, poi vai in battaglia.</small>";
+    document.getElementById("palette").hidden = false;
+    document.getElementById("unitPalette").hidden = true;
+    document.getElementById("btnBattle").hidden = false;
+    document.getElementById("btnBuild").hidden = true;
+    document.getElementById("btnMission").hidden = false;
+    document.getElementById("hintText").textContent = "Clic per posare mattoni · trascina · R ruota";
+    updateScore();
+  }
+
+  function spawnInitialEnemies() {
+    const tops = topSurfaces();
+    if (!tops.length) return;
+    for (let i = 0; i < 3; i++) {
+      const s = tops[Math.floor(Math.random() * tops.length)];
+      units.push(makeUnit("enemy", s.x + (Math.random() - 0.5) * 20, s.y - 8));
+    }
+  }
+
+  function makeUnit(typeId, x, y) {
+    const t = UNIT_TYPES.find(function (u) { return u.id === typeId; }) || UNIT_TYPES[0];
+    return {
+      id: typeId, x, y, team: t.team,
+      hp: t.hp, maxHp: t.hp, dmg: t.dmg, range: t.range, speed: t.speed,
+      atkCd: 0, hit: 0,
+    };
+  }
+
+  function topSurfaces() {
+    const surfaces = [];
+    pieces.forEach(function (b) {
+      surfaces.push({ x: b.x + (b.gw * GRID) / 2, y: b.y, piece: b });
+    });
+    return surfaces;
+  }
+
+  function surfaceNear(px, py) {
+    let best = null, bestD = 9999;
+    pieces.forEach(function (b) {
+      const cx = b.x + (b.gw * GRID) / 2;
+      const cy = b.y - 4;
+      const d = Math.hypot(px - cx, py - cy);
+      if (d < bestD && d < 50) { bestD = d; best = { x: cx, y: cy }; }
+    });
+    return best;
+  }
+
+  function unitAt(px, py) {
+    for (let i = units.length - 1; i >= 0; i--) {
+      const u = units[i];
+      if (Math.hypot(px - u.x, py - u.y) < 16) return i;
+    }
+    return -1;
+  }
+
+  function updateScore() {
+    if (mode === "battle") {
+      const blue = units.filter(function (u) { return u.team === "blue" && u.hp > 0; }).length;
+      const red = units.filter(function (u) { return u.team === "red" && u.hp > 0; }).length;
+      document.getElementById("scoreText").innerHTML =
+        "Blu <strong>" + blue + "</strong> vs Rossi <strong>" + red + "</strong>";
+    } else {
+      document.getElementById("count").textContent = String(pieces.length);
+    }
+  }
+
+  function drawStuds(x, y, gw, gh, col, plate, slope) {
+    const bw = gw * GRID, bh = gh * GRID, h = plate ? 8 : 14;
+    ctx.fillStyle = col;
+    if (slope) {
+      ctx.beginPath();
+      ctx.moveTo(x, y + bh); ctx.lineTo(x + bw, y + bh);
+      ctx.lineTo(x + bw, y + bh - h); ctx.lineTo(x, y + 4);
+      ctx.closePath(); ctx.fill();
+      if (mode === "battle") {
+        ctx.strokeStyle = "rgba(255,100,50,0.4)"; ctx.lineWidth = 2; ctx.stroke();
+      }
+      return;
+    }
+    ctx.fillRect(x, y + bh - h, bw, h);
+    if (mode === "battle") {
+      ctx.fillStyle = "rgba(0,0,0,0.2)";
+      ctx.fillRect(x, y + bh - h, bw, 3);
+    }
+    for (let sy = 0; sy < gh; sy++) {
+      for (let sx = 0; sx < gw; sx++) {
+        const cx = x + sx * GRID + GRID / 2;
+        const cy = y + sy * GRID + GRID / 2 + (plate ? bh - h - 4 : bh - h - 8);
+        ctx.fillStyle = mode === "battle" ? "rgba(255,200,100,0.25)" : "rgba(255,255,255,0.35)";
+        ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
+  function drawUnit(u) {
+    const shake = u.hit > 0 ? Math.sin(frame * 4) * 2 : 0;
+    const col = u.team === "blue" ? "#339af0" : "#e03131";
+    const skin = "#ffdbac";
+
+    ctx.save();
+    ctx.translate(u.x + shake, u.y);
+
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.beginPath(); ctx.ellipse(0, 4, 10, 3, 0, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = col;
+    ctx.fillRect(-8, -18, 16, 18);
+    ctx.fillStyle = skin;
+    ctx.beginPath(); ctx.arc(0, -24, 7, 0, Math.PI * 2); ctx.fill();
+
+    if (u.id === "archer") {
+      ctx.strokeStyle = "#5c4033"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(8, -16, 8, -0.8, 0.8); ctx.stroke();
+    } else if (u.id === "knight") {
+      ctx.fillStyle = "#ced4da";
+      ctx.fillRect(-10, -20, 20, 6);
+    } else if (u.id === "boss") {
+      ctx.fillStyle = "#ffd43b";
+      ctx.fillRect(-12, -22, 24, 8);
+      ctx.scale(1.2, 1.2);
+    }
+
+    if (u.hp < u.maxHp) {
+      ctx.fillStyle = "#333";
+      ctx.fillRect(-12, -32, 24, 4);
+      ctx.fillStyle = u.team === "blue" ? "#51cf66" : "#ff6b6b";
+      ctx.fillRect(-12, -32, 24 * (u.hp / u.maxHp), 4);
+    }
+
+    ctx.font = "14px system-ui";
+    ctx.textAlign = "center";
+    const icons = { soldier: "⚔️", archer: "🏹", knight: "🛡️", enemy: "💀", boss: "👹" };
+    ctx.fillText(icons[u.id] || "🧍", 0, -28);
+
+    ctx.restore();
+    if (u.hit > 0) u.hit--;
+  }
+
+  function drawBackground() {
+    if (mode === "battle") {
+      const g = ctx.createLinearGradient(0, 0, 0, BASE_Y);
+      g.addColorStop(0, "#3d1515");
+      g.addColorStop(0.5, "#2a1010");
+      g.addColorStop(1, "#1a0808");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, BASE_Y);
+      ctx.fillStyle = "rgba(255,100,0," + (0.08 + Math.sin(frame * 0.05) * 0.04) + ")";
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath();
+        ctx.arc(80 + i * 100, 40 + i * 15, 30, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = "#5c4033";
+      ctx.fillRect(0, BASE_Y - 6, W, 10);
+      ctx.fillStyle = "#3d2b1f";
+      ctx.fillRect(0, BASE_Y, W, H - BASE_Y);
+      ctx.strokeStyle = "rgba(255,50,0,0.15)";
+      for (let x = 0; x < W; x += GRID) {
+        ctx.beginPath(); ctx.moveTo(x, BASE_Y); ctx.lineTo(x, H); ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(255,200,0,0.6)";
+      ctx.font = "800 14px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("⚔ CAMPO DI BATTAGLIA ⚔", W / 2, 22);
+    } else {
+      const sky = ctx.createLinearGradient(0, 0, 0, BASE_Y);
+      sky.addColorStop(0, "#74c0fc"); sky.addColorStop(1, "#e7f5ff");
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, BASE_Y);
+      ctx.fillStyle = "#339af0"; ctx.fillRect(0, BASE_Y - 8, W, 12);
+      ctx.fillStyle = "#dee2e6"; ctx.fillRect(0, BASE_Y, W, H - BASE_Y);
+    }
+  }
+
+  function tickBattle() {
+    battleTimer++;
+    if (battleTimer % 20 !== 0) return;
+
+    units.forEach(function (u) {
+      if (u.hp <= 0) return;
+      u.atkCd = Math.max(0, u.atkCd - 1);
+      let target = null, bestD = u.range;
+      units.forEach(function (o) {
+        if (o.team === u.team || o.hp <= 0) return;
+        const d = Math.hypot(o.x - u.x, o.y - u.y);
+        if (d < bestD) { bestD = d; target = o; }
+      });
+      if (target) {
+        if (bestD > u.range * 0.6) {
+          u.x += (target.x - u.x) / bestD * u.speed * 3;
+          u.y += (target.y - u.y) / bestD * u.speed * 2;
+        }
+        if (u.atkCd <= 0) {
+          target.hp -= u.dmg;
+          target.hit = 8;
+          u.atkCd = 25;
+          particles.push({ x: target.x, y: target.y - 20, life: 15, col: "#ffd43b" });
+          if (target.hp <= 0) {
+            particles.push({ x: target.x, y: target.y, life: 25, col: "#ff6b6b", big: true });
+          }
+        }
+      }
+    });
+
+    units = units.filter(function (u) { return u.hp > 0; });
+    updateScore();
+
+    const blue = units.filter(function (u) { return u.team === "blue"; }).length;
+    const red = units.filter(function (u) { return u.team === "red"; }).length;
+    if (blue === 0 && red > 0 && battleTimer > 60) toast("💀 Sconfitta! Piazza più eroi blu!");
+    if (red === 0 && blue > 0) toast("🏆 VITTORIA! Campo conquistato!");
+  }
+
+  function drawScene() {
+    frame++;
+    drawBackground();
+
+    pieces.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (b) {
+      ctx.globalAlpha = mode === "battle" ? 0.95 : 1;
+      drawStuds(b.x, b.y, b.gw, b.gh, b.color, b.plate, b.slope);
+      ctx.globalAlpha = 1;
+    });
+
+    if (mode === "build" && !drag && selectedType) {
+      const d = brickDims(selectedType, ghostRot);
+      const gx = snap(pointer.x - (d.gw * GRID) / 2);
+      const gy = snap(Math.min(pointer.y - d.gh * GRID, BASE_Y - d.gh * GRID));
+      if (gy >= 0 && gx >= 0 && gx + d.gw * GRID <= W) {
+        ctx.globalAlpha = 0.5;
+        drawStuds(gx, gy, d.gw, d.gh, selectedType.color, selectedType.plate, selectedType.slope);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#ffd43b"; ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]); ctx.strokeRect(gx, gy, d.gw * GRID, d.gh * GRID); ctx.setLineDash([]);
+      }
+    }
+
+    if (drag) drawStuds(drag.piece.x, drag.piece.y, drag.piece.gw, drag.piece.gh, drag.piece.color, drag.piece.plate, drag.piece.slope);
+
+    units.forEach(drawUnit);
+
+    particles.forEach(function (p) {
+      p.life--;
+      ctx.globalAlpha = p.life / 25;
+      ctx.fillStyle = p.col;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.big ? 10 : 4, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    particles = particles.filter(function (p) { return p.life > 0; });
+    ctx.globalAlpha = 1;
+
+    if (mode === "battle") tickBattle();
+  }
+
+  function clientPos(e) {
+    const r = cv.getBoundingClientRect();
+    const cx = e.clientX != null ? e.clientX : e.touches[0].clientX;
+    const cy = e.clientY != null ? e.clientY : e.touches[0].clientY;
+    return { x: (cx - r.left) * (W / r.width), y: (cy - r.top) * (H / r.height) };
+  }
+
+  cv.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    cv.setPointerCapture(e.pointerId);
+    const p = clientPos(e);
+    pointer.x = p.x; pointer.y = p.y;
+
+    if (mode === "battle") {
+      const ui = unitAt(p.x, p.y);
+      if (ui >= 0) {
+        dragUnit = { idx: ui, offX: p.x - units[ui].x, offY: p.y - units[ui].y };
+        return;
+      }
+      const surf = surfaceNear(p.x, p.y);
+      if (surf) {
+        units.push(makeUnit(selectedUnit.id, surf.x, surf.y - 10));
+        updateScore();
+        toast(selectedUnit.label + " piazzato!");
+      }
+      return;
+    }
+
+    const idx = pieceAt(p.x, p.y);
+    if (idx >= 0) {
+      const b = pieces.splice(idx, 1)[0];
+      drag = { piece: b, offX: p.x - b.x, offY: p.y - b.y };
+    }
+  });
+
+  cv.addEventListener("pointermove", function (e) {
+    const p = clientPos(e);
+    pointer.x = p.x; pointer.y = p.y;
+    if (drag) {
+      drag.piece.x = snap(p.x - drag.offX);
+      drag.piece.y = snap(Math.min(p.y - drag.offY, BASE_Y - drag.piece.gh * GRID));
+    }
+    if (dragUnit) {
+      const u = units[dragUnit.idx];
+      if (u) { u.x = p.x - dragUnit.offX; u.y = p.y - dragUnit.offY; }
+    }
+  });
+
+  cv.addEventListener("pointerup", function () {
+    if (drag) {
+      pieces.push(drag.piece);
+      drag = null;
+      updateScore();
+      return;
+    }
+    dragUnit = null;
+    if (mode === "build") {
+      addPiece(pointer.x, pointer.y, selectedType, ghostRot);
+    }
+  });
+
+  function pieceAt(px, py) {
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      const b = pieces[i];
+      if (px >= b.x && px <= b.x + b.gw * GRID && py >= b.y && py <= b.y + b.gh * GRID) return i;
+    }
+    return -1;
+  }
+
+  function addPiece(x, y, type, rot) {
+    const d = brickDims(type, rot);
+    const nx = snap(x - (d.gw * GRID) / 2);
+    const ny = snap(Math.min(y - d.gh * GRID, BASE_Y - d.gh * GRID));
+    if (ny < 0 || nx < 0 || nx + d.gw * GRID > W) return;
+    pieces.push({
+      x: nx, y: ny, gw: d.gw, gh: d.gh,
+      color: type.color, plate: !!type.plate, slope: !!type.slope,
+      typeId: type.id, rot: rot,
+    });
+    updateScore();
+  }
+
+  window.addEventListener("keydown", function (e) {
+    if (e.code === "KeyR" && mode === "build") ghostRot = (ghostRot + 1) % 2;
+  });
+
+  document.getElementById("btnBattle").addEventListener("click", enterBattle);
+  document.getElementById("btnBuild").addEventListener("click", enterBuild);
+  document.getElementById("btnClear").addEventListener("click", function () {
+    pieces = []; units = [];
+    if (mode === "battle") enterBuild();
+    updateScore();
+    toast("Tutto cancellato!");
+  });
+
+  buildPalette();
+  buildUnitPalette();
+  const y = BASE_Y - GRID * 2;
+  pieces = [
+    { x: GRID * 4, y: y, gw: 4, gh: 2, color: "#868e96", plate: false, slope: true, typeId: "slope", rot: 0 },
+    { x: GRID * 8, y: y, gw: 4, gh: 2, color: "#e03131", plate: false, slope: false, typeId: "2x4", rot: 0 },
+    { x: GRID * 12, y: y, gw: 4, gh: 2, color: "#339af0", plate: false, slope: false, typeId: "1x4", rot: 0 },
+    { x: GRID * 16, y: y, gw: 2, gh: 2, color: "#ffd43b", plate: false, slope: false, typeId: "2x2", rot: 0 },
+  ];
+  updateScore();
+  toast("Costruisci la base, poi ⚔️ Campo di battaglia!");
+  requestAnimationFrame(function loop() { drawScene(); requestAnimationFrame(loop); });
+})();
+  </script>
+</body>
+</html>

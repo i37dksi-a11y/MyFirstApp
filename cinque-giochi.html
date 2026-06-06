@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cinque giochi — party mode</title>
+  <style>
+    :root {
+      --bg0: #0c1018;
+      --bg1: #1a1530;
+      --card: #1c2430;
+      --line: rgba(255,255,255,0.1);
+      --text: #e8ecf1;
+      --muted: #8b97a8;
+      --a: #4dabf7;
+      --ok: #51cf66;
+      --hot: #ff6b6b;
+      --cold: #339af0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background:
+        radial-gradient(ellipse 90% 80% at 10% -10%, rgba(77, 171, 247, 0.25) 0%, transparent 50%),
+        radial-gradient(ellipse 70% 50% at 100% 20%, rgba(218, 119, 242, 0.2) 0%, transparent 45%),
+        linear-gradient(165deg, var(--bg0) 0%, var(--bg1) 55%, #0d1218 100%);
+      color: var(--text);
+      padding: 1rem 1rem 2.5rem;
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+    h1 {
+      font-size: 1.45rem;
+      margin: 0 0 0.35rem;
+      text-shadow: 0 2px 24px rgba(77, 171, 247, 0.35);
+    }
+    .intro {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin: 0 0 1rem;
+      max-width: 520px;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-bottom: 1rem;
+    }
+    .tabs button {
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: rgba(28, 36, 48, 0.9);
+      color: var(--text);
+      padding: 0.45rem 0.75rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.76rem;
+      transition: transform 0.12s, box-shadow 0.2s;
+    }
+    .tabs button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+    .tabs button.on {
+      background: linear-gradient(135deg, #339af0, #7950f2);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(51, 154, 240, 0.45);
+    }
+    .panel { display: none; max-width: 440px; }
+    .panel.on { display: block; animation: panelIn 0.35s ease; }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+    .box {
+      background: linear-gradient(165deg, rgba(28, 36, 48, 0.95), rgba(22, 28, 38, 0.98));
+      border-radius: 18px;
+      padding: 1.1rem 1.15rem;
+      border: 1px solid var(--line);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+    }
+    .box h2 { margin: 0 0 0.45rem; font-size: 1.05rem; color: var(--a); }
+    .hint { font-size: 0.78rem; color: var(--muted); margin: 0 0 0.85rem; }
+    button, .btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 12px;
+      padding: 0.55rem 0.95rem;
+      font-weight: 700;
+      font-size: 0.88rem;
+      background: linear-gradient(180deg, #4dabf7, #228be6);
+      color: #fff;
+      box-shadow: 0 4px 0 #1864ab;
+    }
+    button:active, .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1864ab; }
+    button:hover, .btn:hover { filter: brightness(1.08); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    input[type="number"], input[type="text"] {
+      width: 100%;
+      max-width: 220px;
+      padding: 0.55rem 0.75rem;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,0.35);
+      color: var(--text);
+      font-size: 1rem;
+      margin: 0.35rem 0;
+    }
+    .out {
+      margin-top: 0.75rem;
+      min-height: 2.2em;
+      font-weight: 700;
+      font-size: 0.95rem;
+      line-height: 1.35;
+    }
+    .out.win { color: var(--ok); text-shadow: 0 0 20px rgba(81, 207, 102, 0.45); }
+    .out.hot { color: var(--hot); }
+    .out.cold { color: var(--cold); }
+    .simon-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 0.85rem 0; }
+    .simon-row button {
+      width: 76px;
+      height: 76px;
+      border-radius: 16px;
+      border: 3px solid rgba(255,255,255,0.15);
+      font-size: 0;
+      transition: transform 0.08s;
+    }
+    .simon-row button:active:not(:disabled) { transform: scale(0.94); }
+    .simon-row button.c0 { background: linear-gradient(145deg, #ff6b6b, #c92a2a); }
+    .simon-row button.c1 { background: linear-gradient(145deg, #69db7c, #2f9e44); }
+    .simon-row button.c2 { background: linear-gradient(145deg, #4dabf7, #1864ab); }
+    .simon-row button.c3 { background: linear-gradient(145deg, #ffd43b, #f08c00); }
+    .simon-row button.lit {
+      filter: brightness(1.5);
+      box-shadow: 0 0 28px rgba(255,255,255,0.65);
+      transform: scale(1.06);
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(255, 212, 59, 0.15);
+      color: #ffd43b;
+      padding: 0.2rem 0.55rem;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      margin-left: 0.35rem;
+    }
+    #aimZone {
+      position: relative;
+      height: 220px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 16px;
+      margin-top: 0.55rem;
+      overflow: hidden;
+      border: 2px dashed rgba(255,255,255,0.12);
+    }
+    #aimBtn {
+      position: absolute;
+      padding: 0.55rem 1rem;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(180deg, #69db7c, #37b24d);
+      color: #0d1f12;
+      font-weight: 800;
+      cursor: pointer;
+      display: none;
+      box-shadow: 0 4px 0 #2b8a3e;
+      font-size: 1rem;
+      animation: aimPulse 0.6s ease infinite;
+    }
+    @keyframes aimPulse {
+      50% { transform: scale(1.05); }
+    }
+    #rpsDuel {
+      font-size: 2.4rem;
+      text-align: center;
+      margin: 0.65rem 0;
+      min-height: 3.2rem;
+      letter-spacing: 0.2em;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .shake { animation: sh 0.45s ease; }
+    @keyframes sh {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      75% { transform: translateX(8px); }
+    }
+    #wordScram {
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: 0.25em;
+      color: #ffd43b;
+      margin: 0.65rem 0;
+      text-shadow: 0 0 24px rgba(255, 212, 59, 0.35);
+    }
+    .streak {
+      font-size: 0.85rem;
+      color: #da77f2;
+      font-weight: 700;
+      margin-top: 0.35rem;
+      min-height: 1.3em;
+    }
+    nav { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
+    nav a { color: var(--a); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>🎉 Cinque giochi · party mode</h1>
+  <p class="intro">
+    Cinque mini‑giochi tutti insieme: caldo/freddo sul numero, morra epica, Simon luminoso, bersaglio con combo e parole pazze.
+    <strong>Vinci?</strong> coriandoli + scherzetto sonoro.
+  </p>
+
+  <div class="tabs">
+    <button type="button" class="on" data-tab="n">🔢 Numero</button>
+    <button type="button" data-tab="rps">✊ Morra</button>
+    <button type="button" data-tab="simon">🎨 Simon</button>
+    <button type="button" data-tab="aim">🎯 Bersaglio</button>
+    <button type="button" data-tab="word">🔤 Parola</button>
+  </div>
+
+  <div id="panel-n" class="panel on box">
+    <h2>Indovina il numero</h2>
+    <p class="hint">Penso a un numero <strong>1–100</strong>. Hai <strong>7 tentativi</strong>. Ti dico se sei vicino al fuoco o al ghiaccio ❄️🔥</p>
+    <button type="button" id="nNew">Nuovo numero</button>
+    <div style="margin-top:0.75rem;">
+      <label for="nGuess">Il tuo numero</label><br />
+      <input id="nGuess" type="number" min="1" max="100" placeholder="1–100" />
+      <button type="button" id="nSend">Prova!</button>
+    </div>
+    <p class="out" id="nOut"></p>
+  </div>
+
+  <div id="panel-rps" class="panel box" hidden>
+    <h2>Carta, forbice, sasso</h2>
+    <p class="hint">Contro il PC. Prima a <strong>3 round</strong> vinti. Pareggio = si ripete!</p>
+    <p class="out" id="rpsScore">Tu 0 · PC 0</p>
+    <div id="rpsDuel"></div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.35rem;">
+      <button type="button" data-rps="0">Sasso ✊</button>
+      <button type="button" data-rps="1">Carta ✋</button>
+      <button type="button" data-rps="2">Forbice ✌️</button>
+    </div>
+    <p class="out" id="rpsOut"></p>
+    <button type="button" id="rpsReset" style="background:#495057;box-shadow:0 4px 0 #343a40;margin-top:0.5rem;">Reset</button>
+  </div>
+
+  <div id="panel-simon" class="panel box" hidden>
+    <h2>Simon says… memorizza! <span class="badge" id="simLv">Lv 1</span></h2>
+    <p class="hint">Guarda i colori accesi, poi ripeti. Ogni livello aggiunge una nota 🎵</p>
+    <button type="button" id="simonStart">▶ Inizia</button>
+    <p class="out" id="simonOut">Premi Inizia e osserva…</p>
+    <div class="simon-row" id="simonBtns">
+      <button type="button" class="c0" data-i="0" aria-label="rosso"></button>
+      <button type="button" class="c1" data-i="1" aria-label="verde"></button>
+      <button type="button" class="c2" data-i="2" aria-label="blu"></button>
+      <button type="button" class="c3" data-i="3" aria-label="arancio"></button>
+    </div>
+  </div>
+
+  <div id="panel-aim" class="panel box" hidden>
+    <h2>Bersaglio fulmine</h2>
+    <p class="hint">10 round: clicca <strong>QUI!</strong> quando appare. Più sei veloce, più punti. Combo ×2 dopo 3 click rapidissimi!</p>
+    <button type="button" id="aimStart">⚡ Via!</button>
+    <p class="out" id="aimHud">Round — · Totale 0 · Serie veloce 0</p>
+    <div id="aimZone"><button type="button" id="aimBtn">QUI!</button></div>
+    <p class="out" id="aimOut"></p>
+    <p class="streak" id="aimComboMsg"></p>
+  </div>
+
+  <div id="panel-word" class="panel box" hidden>
+    <h2>Parola mescolata</h2>
+    <p class="hint">Ricostruisci la parola in italiano. Serie lunga = punti bonus!</p>
+    <p id="wordScram"></p>
+    <input type="text" id="wordIn" placeholder="Scrivi la parola…" autocomplete="off" />
+    <button type="button" id="wordCheck">Controlla</button>
+    <button type="button" id="wordNext" style="background:#495057;box-shadow:0 4px 0 #343a40;margin-left:0.35rem;">Altra parola</button>
+    <p class="out" id="wordOut"></p>
+    <p style="font-size:0.8rem;color:var(--muted);">Punteggio: <span id="wordPts">0</span> · Serie: <span id="wordStreak">0</span></p>
+  </div>
+
+  <nav><a href="entra.html">← Entra</a> · <a href="tre-giochi.html">Tre giochi</a> · <a href="tre-giochi-2p.html">Due giocatori</a></nav>
+
+  <script>
+    (function () {
+      let audioCtx = null;
+      function tone(freq, dur, vol) {
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.type = "sine";
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(vol || 0.06, audioCtx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (dur || 0.08));
+          o.connect(g);
+          g.connect(audioCtx.destination);
+          o.start();
+          o.stop(audioCtx.currentTime + (dur || 0.08));
+        } catch (_) {}
+      }
+      function cheer() {
+        tone(523, 0.07, 0.05);
+        setTimeout(() => tone(659, 0.08, 0.05), 90);
+        setTimeout(() => tone(784, 0.12, 0.06), 180);
+      }
+      function boop(low) {
+        tone(low ? 200 : 420, 0.06, 0.05);
+      }
+
+      function confettiLite() {
+        const c = document.createElement("canvas");
+        c.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:100;width:100%;height:100%";
+        document.body.appendChild(c);
+        const W = (c.width = innerWidth),
+          H = (c.height = innerHeight);
+        const x = c.getContext("2d");
+        const colors = ["#ff6b6b", "#ffd43b", "#69db7c", "#4dabf7", "#da77f2", "#ff922b"];
+        const parts = [];
+        for (let i = 0; i < 100; i++) {
+          parts.push({
+            x: W / 2 + (Math.random() - 0.5) * 120,
+            y: H * 0.35,
+            vx: (Math.random() - 0.5) * 16,
+            vy: -10 - Math.random() * 12,
+            c: colors[(Math.random() * colors.length) | 0],
+            r: 4 + Math.random() * 5,
+          });
+        }
+        let t0 = performance.now(),
+          prev = t0;
+        function frame(now) {
+          const dt = Math.min(50, now - prev);
+          prev = now;
+          x.clearRect(0, 0, W, H);
+          for (const p of parts) {
+            p.vy += 0.4 * (dt / 16);
+            p.x += p.vx * (dt / 16);
+            p.y += p.vy * (dt / 16);
+            x.fillStyle = p.c;
+            x.beginPath();
+            x.arc(p.x, p.y, p.r, 0, 6.28);
+            x.fill();
+          }
+          if (now - t0 < 2400) requestAnimationFrame(frame);
+          else c.remove();
+        }
+        requestAnimationFrame(frame);
+      }
+
+      document.querySelectorAll(".tabs button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-tab");
+          document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b === btn));
+          document.querySelectorAll(".panel").forEach((p) => {
+            const on = p.id === "panel-" + id;
+            p.classList.toggle("on", on);
+            p.hidden = !on;
+          });
+        });
+      });
+
+      /* 1 · Numero */
+      let nSecret = 0,
+        nTries = 7;
+      function nClass(o, cls, msg) {
+        o.className = "out " + (cls || "");
+        o.textContent = msg;
+      }
+      function nHotCold(v) {
+        const d = Math.abs(v - nSecret);
+        if (d <= 3) return { t: "BRUCIA! 🔥🔥", c: "hot" };
+        if (d <= 10) return { t: "Caldo caldo 🔥", c: "hot" };
+        if (d <= 25) return { t: "Tiepido…", c: "" };
+        if (d <= 45) return { t: "Freddino ❄️", c: "cold" };
+        return { t: "GHIACCIO 🧊", c: "cold" };
+      }
+      function nPick() {
+        nSecret = 1 + Math.floor(Math.random() * 100);
+        nTries = 7;
+        nClass(document.getElementById("nOut"), "", "Ho scelto un numero. Prova pure!");
+        document.getElementById("nGuess").value = "";
+        boop(false);
+      }
+      document.getElementById("nNew").onclick = nPick;
+      document.getElementById("nSend").onclick = () => {
+        const v = parseInt(document.getElementById("nGuess").value, 10);
+        const o = document.getElementById("nOut");
+        if (isNaN(v) || v < 1 || v > 100) {
+          nClass(o, "", "Metti un numero tra 1 e 100!");
+          boop(true);
+          return;
+        }
+        nTries -= 1;
+        if (v === nSecret) {
+          cheer();
+          confettiLite();
+          nClass(o, "win", "🎯 ESATTO! Era " + nSecret + ". Sei un detective dei numeri!");
+          return;
+        }
+        if (nTries <= 0) {
+          boop(true);
+          nClass(o, "", "😅 Tentativi finiti. Era " + nSecret + ". Premi «Nuovo numero»!");
+          return;
+        }
+        const hc = nHotCold(v);
+        const dir = v < nSecret ? "Più alto ⬆️" : "Più basso ⬇️";
+        nClass(o, hc.c, hc.t + " · " + dir + " · Tentativi: " + nTries);
+        boop(v < nSecret);
+      };
+      nPick();
+
+      /* 2 · Morra */
+      const rpsEmo = ["✊", "✋", "✌️"];
+      const rpsN = ["Sasso", "Carta", "Forbice"];
+      let rpsU = 0,
+        rpsC = 0;
+      const panelRps = document.getElementById("panel-rps");
+      function rpsUpd() {
+        document.getElementById("rpsScore").textContent = "Tu " + rpsU + " · PC " + rpsC + " (prima a 3)";
+      }
+      document.querySelectorAll("[data-rps]").forEach((b) => {
+        b.addEventListener("click", () => {
+          const o = document.getElementById("rpsOut");
+          const duel = document.getElementById("rpsDuel");
+          if (rpsU >= 3 || rpsC >= 3) return;
+          const u = parseInt(b.getAttribute("data-rps"), 10);
+          const c = Math.floor(Math.random() * 3);
+          duel.innerHTML = '<span style="opacity:0.85">' + rpsEmo[u] + "</span> &nbsp;⚔️&nbsp; <span>" + rpsEmo[c] + "</span>";
+          if (u === c) {
+            o.textContent = "🤝 Pareggio: entrambi " + rpsN[u] + "! Ancora!";
+            boop(false);
+            return;
+          }
+          const win = (u === 0 && c === 2) || (u === 1 && c === 0) || (u === 2 && c === 1);
+          if (win) {
+            rpsU += 1;
+            cheer();
+            o.textContent = "⚡ Round tuo! " + rpsN[u] + " batte " + rpsN[c] + "!";
+          } else {
+            rpsC += 1;
+            boop(true);
+            panelRps.classList.add("shake");
+            setTimeout(() => panelRps.classList.remove("shake"), 450);
+            o.textContent = "💥 Il PC vince il round: " + rpsN[c] + " vs " + rpsN[u];
+          }
+          rpsUpd();
+          if (rpsU >= 3) {
+            confettiLite();
+            o.textContent += " 🏆 HAI SPACCATO LA PARTITA!";
+          }
+          if (rpsC >= 3) o.textContent += " 🤖 Ha vinto il computer… rivincita?";
+        });
+      });
+      document.getElementById("rpsReset").onclick = () => {
+        rpsU = rpsC = 0;
+        rpsUpd();
+        document.getElementById("rpsOut").textContent = "";
+        document.getElementById("rpsDuel").innerHTML = "";
+      };
+      rpsUpd();
+
+      /* 3 · Simon */
+      let seq = [],
+        simI = 0,
+        simPlay = false,
+        simLock = false;
+      const simBtns = document.querySelectorAll("#simonBtns button");
+
+      function simFlash(i, ms, done) {
+        simBtns[i].classList.add("lit");
+        tone(280 + i * 110, (ms || 420) / 1000, 0.04);
+        setTimeout(() => {
+          simBtns[i].classList.remove("lit");
+          if (done) done();
+        }, ms);
+      }
+
+      function simShowSeq(idx) {
+        if (idx >= seq.length) {
+          simPlay = true;
+          simI = 0;
+          document.getElementById("simonOut").textContent = "👉 Ora tocca a te: ripeti!";
+          return;
+        }
+        setTimeout(() => {
+          simFlash(seq[idx], 420, () => setTimeout(() => simShowSeq(idx + 1), 140));
+        }, idx === 0 ? 450 : 0);
+      }
+
+      document.getElementById("simonStart").onclick = () => {
+        seq = [Math.floor(Math.random() * 4)];
+        simPlay = false;
+        simLock = false;
+        document.getElementById("simLv").textContent = "Lv " + seq.length;
+        document.getElementById("simonOut").textContent = "👀 Osserva la sequenza…";
+        setTimeout(() => simShowSeq(0), 280);
+      };
+
+      simBtns.forEach((b) => {
+        b.addEventListener("click", () => {
+          if (!simPlay || simLock) return;
+          const i = parseInt(b.getAttribute("data-i"), 10);
+          simFlash(i, 180, null);
+          if (i !== seq[simI]) {
+            simPlay = false;
+            boop(true);
+            document.getElementById("panel-simon").classList.add("shake");
+            setTimeout(() => document.getElementById("panel-simon").classList.remove("shake"), 450);
+            document.getElementById("simonOut").textContent =
+              "💥 Errore! Livello massimo: " + seq.length + ". Riprendi da Inizia!";
+            return;
+          }
+          simI += 1;
+          if (simI >= seq.length) {
+            simPlay = false;
+            seq.push(Math.floor(Math.random() * 4));
+            document.getElementById("simLv").textContent = "Lv " + seq.length;
+            cheer();
+            document.getElementById("simonOut").textContent =
+              "✨ Perfetto! Livello " + seq.length + " — preparati…";
+            if (seq.length % 4 === 0) confettiLite();
+            setTimeout(() => {
+              document.getElementById("simonOut").textContent = "👀 Memorizza la nuova sequenza…";
+              simShowSeq(0);
+            }, 950);
+          }
+        });
+      });
+
+      /* 4 · Aim */
+      let aimRound = 0,
+        aimTot = 0,
+        aimT0 = 0,
+        aimTimer = null,
+        aimBestSingle = 0,
+        aimFastStreak = 0;
+      const aimZone = document.getElementById("aimZone");
+      const aimBtn = document.getElementById("aimBtn");
+
+      function aimPhrase(pts, combo) {
+        if (combo >= 3) return "🔥 COMBO x2 attivo!";
+        if (pts >= 950) return "⚡ Razzo!";
+        if (pts >= 850) return "🚀 Velocissimo!";
+        if (pts >= 700) return "💨 Grande!";
+        if (pts >= 500) return "👍 Ci sei!";
+        return "Ci riprovi!";
+      }
+
+      function aimNextRound() {
+        aimRound += 1;
+        if (aimRound > 10) {
+          aimBtn.style.display = "none";
+          document.getElementById("aimHud").textContent =
+            "🏁 Finito! Totale " + aimTot + " · Miglior colpo " + aimBestSingle;
+          const msg =
+            aimTot > 8500
+              ? "🏆 Campione del riflesso!"
+              : aimTot > 6500
+                ? "🌟 Ci sei quasi da record!"
+                : "💪 Allenati ancora un po'!";
+          document.getElementById("aimOut").textContent = msg;
+          document.getElementById("aimComboMsg").textContent = "";
+          if (aimTot > 7000) {
+            cheer();
+            confettiLite();
+          }
+          return;
+        }
+        document.getElementById("aimHud").textContent =
+          "Round " +
+          aimRound +
+          "/10 · Totale " +
+          aimTot +
+          " · Serie veloce " +
+          aimFastStreak;
+        aimBtn.style.display = "none";
+        const delay = 350 + Math.random() * 1100;
+        aimTimer = setTimeout(() => {
+          aimT0 = performance.now();
+          const w = aimBtn.offsetWidth || 72;
+          const h = aimBtn.offsetHeight || 40;
+          aimBtn.style.left = Math.random() * Math.max(10, aimZone.clientWidth - w - 10) + "px";
+          aimBtn.style.top = Math.random() * Math.max(10, aimZone.clientHeight - h - 10) + "px";
+          aimBtn.style.display = "block";
+        }, delay);
+      }
+
+      document.getElementById("aimStart").onclick = () => {
+        clearTimeout(aimTimer);
+        aimRound = 0;
+        aimTot = 0;
+        aimBestSingle = 0;
+        aimFastStreak = 0;
+        document.getElementById("aimOut").textContent = "";
+        document.getElementById("aimComboMsg").textContent = "";
+        aimNextRound();
+      };
+
+      aimBtn.onclick = () => {
+        const ms = performance.now() - aimT0;
+        if (ms < 280) aimFastStreak += 1;
+        else aimFastStreak = 0;
+        let pts = Math.max(0, Math.round(1000 - ms));
+        if (aimFastStreak >= 3) pts *= 2;
+        if (pts > aimBestSingle) aimBestSingle = pts;
+        aimTot += pts;
+        clearTimeout(aimTimer);
+        aimBtn.style.display = "none";
+        boop(false);
+        document.getElementById("aimOut").textContent = "+" + pts + " · " + aimPhrase(pts, aimFastStreak);
+        document.getElementById("aimComboMsg").textContent =
+          aimFastStreak >= 3 ? "🔥 Combo attiva: prossimi punti raddoppiati!" : "";
+        aimNextRound();
+      };
+
+      /* 5 · Parola */
+      const words = [
+        "GATTO",
+        "CASA",
+        "PIZZA",
+        "DORMIRE",
+        "FESTA",
+        "DINOSAURO",
+        "RIDERE",
+        "MANGIARE",
+        "VENTO",
+        "SCUOLA",
+        "AMICO",
+        "GELATO",
+        "PALLONE",
+        "SQUALO",
+        "ARCOBALENO",
+        "BURATTINO",
+        "CANGURO",
+        "FARFALLA",
+        "TAMBURO",
+        "UNIVERSO",
+      ];
+      let wordCur = "",
+        wordPts = 0,
+        wordStreak = 0;
+
+      function shuffleStr(s) {
+        const a = s.split("");
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a.join("");
+      }
+
+      function wordNew() {
+        wordCur = words[(Math.random() * words.length) | 0];
+        let sc = shuffleStr(wordCur);
+        let guard = 0;
+        while (sc === wordCur && wordCur.length > 1 && guard++ < 25) sc = shuffleStr(wordCur);
+        document.getElementById("wordScram").textContent = sc.split("").join(" ");
+        document.getElementById("wordIn").value = "";
+      }
+
+      function wordCheck() {
+        const g = document.getElementById("wordIn").value.trim().toUpperCase();
+        const o = document.getElementById("wordOut");
+        if (g === wordCur) {
+          wordStreak += 1;
+          const bonus = wordStreak >= 3 ? 15 : 0;
+          const add = 10 + wordCur.length + bonus;
+          wordPts += add;
+          document.getElementById("wordPts").textContent = String(wordPts);
+          document.getElementById("wordStreak").textContent = String(wordStreak);
+          cheer();
+          o.className = "out win";
+          o.textContent =
+            "✅ Esatto! +" +
+            add +
+            " punti" +
+            (bonus ? " (serie calda!)" : "") +
+            " — " +
+            ["Ottimo!", "Geniale!", "Continua così!", "🧠"][wordStreak % 4];
+          if (wordStreak === 5) confettiLite();
+          wordNew();
+        } else {
+          wordStreak = 0;
+          document.getElementById("wordStreak").textContent = "0";
+          o.className = "out";
+          o.textContent = "🙈 Non ancora… riprova o chiedi un'altra parola!";
+          boop(true);
+        }
+      }
+
+      document.getElementById("wordCheck").onclick = wordCheck;
+      document.getElementById("wordNext").onclick = () => {
+        wordNew();
+        document.getElementById("wordOut").textContent = "";
+      };
+      document.getElementById("wordIn").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") wordCheck();
+      });
+      wordNew();
+    })();
+  </script>
+</body>
+</html>

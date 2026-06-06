@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tre giochi</title>
+  <style>
+    :root {
+      --bg: #12161c;
+      --card: #1c222c;
+      --line: rgba(255,255,255,0.08);
+      --text: #e8ecf1;
+      --muted: #8b97a8;
+      --a: #4dabf7;
+      --ok: #51cf66;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 1rem 1rem 2rem;
+      line-height: 1.45;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
+    .intro { color: var(--muted); font-size: 0.88rem; margin: 0 0 1.25rem; }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    .tabs button {
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      padding: 0.45rem 0.85rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+    .tabs button.on {
+      background: #228be6;
+      border-color: #228be6;
+      color: #fff;
+    }
+    .panel { display: none; max-width: 420px; }
+    .panel.on { display: block; }
+    .box {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 1rem;
+      border: 1px solid var(--line);
+    }
+    .box h2 { margin: 0 0 0.75rem; font-size: 1rem; color: var(--a); }
+
+    /* Tris party */
+    #panel-tris { transition: transform 0.12s; }
+    #panel-tris.shake { animation: trisShake 0.45s ease; }
+    @keyframes trisShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+    #trisGrid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      max-width: 260px;
+    }
+    #trisGrid button {
+      aspect-ratio: 1;
+      font-size: 2rem;
+      font-weight: 700;
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      background: rgba(0,0,0,0.3);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    #trisGrid button:not(:disabled):active { transform: scale(0.94); }
+    #trisGrid button:disabled { cursor: default; }
+    #trisGrid button.cell-x { color: #4dabf7; text-shadow: 0 0 12px rgba(77, 171, 247, 0.45); }
+    #trisGrid button.cell-o { color: #ff8787; text-shadow: 0 0 12px rgba(255, 135, 135, 0.4); }
+    #trisGrid button.win-line {
+      border-color: #ffd43b;
+      box-shadow: 0 0 18px rgba(255, 212, 59, 0.55);
+      background: rgba(255, 212, 59, 0.12);
+      animation: trisGlow 0.9s ease-in-out infinite alternate;
+    }
+    @keyframes trisGlow {
+      from { filter: brightness(1); }
+      to { filter: brightness(1.15); }
+    }
+    #trisGrid button.just-placed { animation: trisPop 0.45s ease; }
+    @keyframes trisPop {
+      0% { transform: scale(0.25); opacity: 0.4; }
+      55% { transform: scale(1.12); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    #trisMsg { margin-top: 0.65rem; min-height: 1.4em; font-weight: 700; font-size: 1.02rem; }
+    #trisTaunt { margin-top: 0.35rem; font-size: 0.88rem; color: #da77f2; font-style: italic; min-height: 1.3em; }
+
+    /* Memory */
+    #memGrid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      max-width: 280px;
+    }
+    #memGrid button {
+      aspect-ratio: 1;
+      font-size: 1.35rem;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #2d3748;
+      cursor: pointer;
+      transition: transform 0.12s;
+    }
+    #memGrid button:active { transform: scale(0.96); }
+    #memGrid button.show { background: #2b4a6e; }
+    #memGrid button.matched {
+      background: #1e4620;
+      cursor: default;
+      opacity: 0.9;
+    }
+    #memMsg { margin-top: 0.65rem; font-size: 0.9rem; color: var(--muted); }
+
+    /* Reazione */
+    #reactBtn {
+      width: 100%;
+      max-width: 300px;
+      padding: 2rem 1rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+    #reactBtn.wait { background: #c92a2a; color: #fff; }
+    #reactBtn.go { background: var(--ok); color: #0d1f12; }
+    #reactBtn.too { background: #868e96; color: #fff; }
+    #reactOut { margin-top: 0.75rem; font-size: 1rem; min-height: 2.5em; }
+
+    nav { margin-top: 1.5rem; font-size: 0.82rem; color: var(--muted); }
+    nav a { color: var(--a); }
+  </style>
+</head>
+<body>
+  <h1>Tre giochi</h1>
+  <p class="intro" style="background:rgba(77,171,247,0.12);padding:0.65rem 0.85rem;border-radius:12px;border:1px solid rgba(77,171,247,0.25);margin-bottom:1rem;">
+    <strong>Due persone?</strong> Apri <a href="tre-giochi-2p.html" style="color:#74c0fc;font-weight:700;">tre-giochi-2p.html</a> — Tris, Pong e duello tasti in <em>party mode</em> (coriandoli, countdown, effetti).
+  </p>
+  <p class="intro">Qui invece giochi da <strong>un solo giocatore</strong> contro il computer. Scegli la scheda.</p>
+
+  <div class="tabs" role="tablist" aria-label="Scegli gioco">
+    <button type="button" class="on" data-tab="tris" role="tab" aria-selected="true">1 · Tris epico</button>
+    <button type="button" data-tab="mem" role="tab" aria-selected="false">2 · Memory</button>
+    <button type="button" data-tab="react" role="tab" aria-selected="false">3 · Reazione</button>
+  </div>
+
+  <div id="panel-tris" class="panel on box" role="tabpanel">
+    <h2>Tris epico</h2>
+    <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--muted)">Tu <strong>✕</strong> blu, il robot <strong>○</strong> rosso. Coriandoli se vinci, il PC prova anche a bloccarti!</p>
+    <div id="trisGrid"></div>
+    <p id="trisMsg"></p>
+    <p id="trisTaunt"></p>
+    <button type="button" id="trisReset" style="margin-top:0.5rem;padding:0.45rem 0.9rem;border-radius:10px;border:none;background:#495057;color:#fff;font-weight:600;cursor:pointer;">Nuova partita</button>
+  </div>
+
+  <div id="panel-mem" class="panel box" role="tabpanel" hidden>
+    <h2>Memory</h2>
+    <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--muted)">Trova le 6 coppie. Clicca due carte.</p>
+    <div id="memGrid"></div>
+    <p id="memMsg">Mosse: 0</p>
+    <button type="button" id="memReset" style="margin-top:0.5rem;padding:0.45rem 0.9rem;border-radius:10px;border:none;background:#495057;color:#fff;font-weight:600;cursor:pointer;">Mischia di nuovo</button>
+  </div>
+
+  <div id="panel-react" class="panel box" role="tabpanel" hidden>
+    <h2>Reazione</h2>
+    <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--muted)">Quando il pulsante diventa <strong>verde</strong>, clicca subito. Non cliccare sul rosso!</p>
+    <button type="button" id="reactBtn" class="wait">Premi per iniziare</button>
+    <p id="reactOut"></p>
+  </div>
+
+  <nav><a href="entra.html">← Entra</a> · <a href="index.html">Altri giochi</a></nav>
+
+  <script>
+    /* Tabs */
+    document.querySelectorAll(".tabs button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-tab");
+        document.querySelectorAll(".tabs button").forEach((b) => {
+          b.classList.toggle("on", b === btn);
+          b.setAttribute("aria-selected", b === btn ? "true" : "false");
+        });
+        document.querySelectorAll(".panel").forEach((p) => {
+          const on = p.id === "panel-" + id;
+          p.classList.toggle("on", on);
+          p.hidden = !on;
+        });
+      });
+    });
+
+    /* --- Tris epico --- */
+    function trisConfetti() {
+      const c = document.createElement("canvas");
+      c.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:9999;width:100%;height:100%";
+      document.body.appendChild(c);
+      const W = (c.width = innerWidth),
+        H = (c.height = innerHeight);
+      const x = c.getContext("2d");
+      const colors = ["#4dabf7", "#ffd43b", "#69db7c", "#ff8787", "#da77f2", "#fff"];
+      const parts = [];
+      for (let i = 0; i < 90; i++) {
+        parts.push({
+          x: W / 2,
+          y: H * 0.35,
+          vx: (Math.random() - 0.5) * 16,
+          vy: -10 - Math.random() * 12,
+          r: 3 + Math.random() * 5,
+          rot: Math.random() * 6,
+          vr: (Math.random() - 0.5) * 0.3,
+          co: colors[(Math.random() * colors.length) | 0],
+        });
+      }
+      const t0 = performance.now();
+      let tPrev = t0;
+      function frame(now) {
+        const dt = Math.min(45, now - tPrev);
+        tPrev = now;
+        x.clearRect(0, 0, W, H);
+        for (const p of parts) {
+          p.vy += 0.4 * (dt / 16);
+          p.x += p.vx * (dt / 16);
+          p.y += p.vy * (dt / 16);
+          p.rot += p.vr * (dt / 16);
+          x.save();
+          x.translate(p.x, p.y);
+          x.rotate(p.rot);
+          x.fillStyle = p.co;
+          x.fillRect(-p.r, -p.r, p.r * 2, p.r * 0.65);
+          x.restore();
+        }
+        if (now - t0 < 2400) requestAnimationFrame(frame);
+        else c.remove();
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function trisBeep(hz) {
+      try {
+        const a = new (window.AudioContext || window.webkitAudioContext)();
+        const o = a.createOscillator();
+        const g = a.createGain();
+        o.connect(g);
+        g.connect(a.destination);
+        o.frequency.value = hz;
+        g.gain.value = 0.055;
+        o.start();
+        o.stop(a.currentTime + 0.055);
+      } catch (_) {}
+    }
+
+    const trisGrid = document.getElementById("trisGrid");
+    const trisMsg = document.getElementById("trisMsg");
+    const trisTaunt = document.getElementById("trisTaunt");
+    const trisPanel = document.getElementById("panel-tris");
+    let board = Array(9).fill("");
+    let trisOver = false;
+    let trisLock = false;
+    let winHighlight = null;
+
+    const trisWinYou = ["HAI VINTO! Campione! 🎉", "Mitico! Il robot strilla!", "Tris perfetto! Leggenda!"];
+    const trisWinPc = ["Il robot ha vinto 🤖", "○ vince! Riprova!", "Preso! Il PC esulta (in silenzio)."];
+    const trisDraw = ["Pareggio — tabella piena!", "Nessuno vince, che tensione!", "Patta! Rivincita?"];
+    const trisThink = ["Il robot pensa… 🤔", "Calcolo in corso…", "Un attimo di CPU…"];
+
+    const winSets = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6],
+    ];
+
+    function trisLines() {
+      for (const [a, b, c] of winSets) {
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) return [a, b, c];
+      }
+      return null;
+    }
+
+    function trisPickMove() {
+      const empty = (ch) => {
+        for (const [a, b, c] of winSets) {
+          const line = [board[a], board[b], board[c]];
+          const idx = [a, b, c];
+          const count = line.filter((v) => v === ch).length;
+          const emp = idx.filter((i) => board[i] === "");
+          if (count === 2 && emp.length === 1) return emp[0];
+        }
+        return -1;
+      };
+      let p = empty("O");
+      if (p >= 0) return p;
+      p = empty("X");
+      if (p >= 0) return p;
+      if (board[4] === "") return 4;
+      const free = board.map((v, j) => (v === "" ? j : -1)).filter((j) => j >= 0);
+      return free[(Math.random() * free.length) | 0];
+    }
+
+    function renderTris(lastPlaced) {
+      trisGrid.innerHTML = "";
+      board.forEach((cell, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = cell === "X" ? "✕" : cell === "O" ? "○" : "";
+        if (cell === "X") b.classList.add("cell-x");
+        if (cell === "O") b.classList.add("cell-o");
+        if (winHighlight && winHighlight.includes(i)) b.classList.add("win-line");
+        if (i === lastPlaced && cell) b.classList.add("just-placed");
+        b.disabled = trisOver || trisLock || cell !== "";
+        b.addEventListener("click", () => trisMove(i));
+        trisGrid.appendChild(b);
+      });
+    }
+
+    function trisMove(i) {
+      if (trisOver || trisLock || board[i]) return;
+      winHighlight = null;
+      trisTaunt.textContent = "";
+      board[i] = "X";
+      trisBeep(520);
+      let win = trisLines();
+      if (win) {
+        trisOver = true;
+        winHighlight = win;
+        trisMsg.textContent = trisWinYou[(Math.random() * trisWinYou.length) | 0];
+        trisConfetti();
+        renderTris(i);
+        return;
+      }
+      if (!board.includes("")) {
+        trisOver = true;
+        trisMsg.textContent = trisDraw[(Math.random() * trisDraw.length) | 0];
+        renderTris(i);
+        return;
+      }
+      trisLock = true;
+      trisMsg.textContent = trisThink[(Math.random() * trisThink.length) | 0];
+      renderTris(i);
+
+      const delay = 380 + Math.random() * 420;
+      setTimeout(() => {
+        const pick = trisPickMove();
+        board[pick] = "O";
+        trisBeep(360);
+        win = trisLines();
+        trisLock = false;
+        if (win) {
+          trisOver = true;
+          winHighlight = win;
+          trisMsg.textContent = trisWinPc[(Math.random() * trisWinPc.length) | 0];
+          trisTaunt.textContent = "La riga vincente brilla in oro ✨";
+          trisPanel.classList.add("shake");
+          setTimeout(() => trisPanel.classList.remove("shake"), 500);
+        } else if (!board.includes("")) {
+          trisOver = true;
+          trisMsg.textContent = trisDraw[(Math.random() * trisDraw.length) | 0];
+        } else {
+          trisMsg.textContent = "Tocca a te — metti una ✕!";
+          trisTaunt.textContent = ["Occhio alla prossima mossa!", "Non mollare!", ""][(Math.random() * 3) | 0];
+        }
+        renderTris(pick);
+      }, delay);
+    }
+
+    function resetTris() {
+      board = Array(9).fill("");
+      trisOver = false;
+      trisLock = false;
+      winHighlight = null;
+      trisMsg.textContent = "Inizia tu con ✕!";
+      trisTaunt.textContent = "";
+      renderTris(-1);
+    }
+    document.getElementById("trisReset").onclick = resetTris;
+    resetTris();
+
+    /* --- Memory --- */
+    const em = ["🍎", "🍌", "🍇", "🍊", "🍓", "🥝"];
+    const memGrid = document.getElementById("memGrid");
+    const memMsg = document.getElementById("memMsg");
+    let memCards = [];
+    let memFlipped = [];
+    let memMoves = 0;
+    let memLock = false;
+
+    function shuffle(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function buildMem() {
+      memGrid.innerHTML = "";
+      const pairs = shuffle([...em, ...em]);
+      memCards = pairs.map((sym, i) => ({ sym, i, matched: false }));
+      memFlipped = [];
+      memMoves = 0;
+      memLock = false;
+      memMsg.textContent = "Mosse: 0";
+      memCards.forEach((c, idx) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.dataset.idx = String(idx);
+        b.textContent = "?";
+        b.addEventListener("click", () => memClick(idx));
+        memGrid.appendChild(b);
+      });
+    }
+
+    function memBtns() {
+      return [...memGrid.querySelectorAll("button")];
+    }
+
+    function memClick(idx) {
+      if (memLock || memCards[idx].matched) return;
+      const fl = memFlipped;
+      if (fl.includes(idx)) return;
+      if (fl.length >= 2) return;
+      const b = memBtns()[idx];
+      b.textContent = memCards[idx].sym;
+      b.classList.add("show");
+      fl.push(idx);
+      if (fl.length < 2) return;
+      memMoves += 1;
+      memMsg.textContent = "Mosse: " + memMoves;
+      const [i, j] = fl;
+      if (memCards[i].sym === memCards[j].sym) {
+        memCards[i].matched = memCards[j].matched = true;
+        memBtns()[i].classList.add("matched");
+        memBtns()[j].classList.add("matched");
+        memFlipped = [];
+        if (memCards.every((c) => c.matched)) {
+          memMsg.textContent = "Hai trovato tutte le coppie in " + memMoves + " mosse!";
+        }
+      } else {
+        memLock = true;
+        setTimeout(() => {
+          memBtns()[i].textContent = "?";
+          memBtns()[j].textContent = "?";
+          memBtns()[i].classList.remove("show");
+          memBtns()[j].classList.remove("show");
+          memFlipped = [];
+          memLock = false;
+        }, 650);
+      }
+    }
+
+    document.getElementById("memReset").onclick = buildMem;
+    buildMem();
+
+    /* --- Reazione --- */
+    const reactBtn = document.getElementById("reactBtn");
+    const reactOut = document.getElementById("reactOut");
+    let reactPhase = "idle";
+    let reactT0 = 0;
+    let reactTimeout = null;
+
+    function clearReactTimer() {
+      if (reactTimeout) {
+        clearTimeout(reactTimeout);
+        reactTimeout = null;
+      }
+    }
+
+    reactBtn.onclick = () => {
+      clearReactTimer();
+      if (reactPhase === "idle") {
+        reactPhase = "wait";
+        reactBtn.className = "wait";
+        reactBtn.textContent = "Attendi il verde…";
+        reactOut.textContent = "";
+        const delay = 1500 + Math.random() * 3500;
+        reactTimeout = setTimeout(() => {
+          reactPhase = "go";
+          reactBtn.className = "go";
+          reactBtn.textContent = "CLICCA!";
+          reactT0 = performance.now();
+        }, delay);
+        return;
+      }
+      if (reactPhase === "wait") {
+        reactPhase = "idle";
+        reactBtn.className = "too";
+        reactBtn.textContent = "Troppo presto! Riprova";
+        reactOut.textContent = "Aspetta che diventi verde.";
+        setTimeout(() => {
+          reactBtn.className = "wait";
+          reactBtn.textContent = "Premi per iniziare";
+        }, 1600);
+        return;
+      }
+      if (reactPhase === "go") {
+        const ms = Math.round(performance.now() - reactT0);
+        reactPhase = "idle";
+        reactBtn.className = "wait";
+        reactBtn.textContent = "Premi per iniziare";
+        reactOut.textContent = "Tempo: " + ms + " ms — " + (ms < 220 ? "Fulmine!" : ms < 350 ? "Ottimo!" : ms < 500 ? "Bene" : "Ci proviamo ancora?");
+      }
+    };
+  </script>
+</body>
+</html>

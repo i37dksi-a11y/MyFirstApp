@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tre giochi · 2 umani · party mode</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a222d;
+      --line: rgba(255,255,255,0.08);
+      --text: #e8ecf1;
+      --muted: #8b97a8;
+      --p1: #ff6b6b;
+      --p2: #4dabf7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 1rem 1rem 2rem;
+      line-height: 1.45;
+    }
+    h1 { font-size: 1.3rem; margin: 0 0 0.25rem; }
+    .intro { color: var(--muted); font-size: 0.86rem; margin: 0 0 1rem; max-width: 520px; }
+    .party { font-size: 0.82rem; color: #ffd43b; font-weight: 600; margin-bottom: 0.75rem; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+    .tabs button {
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      padding: 0.45rem 0.75rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+    .tabs button.on { background: linear-gradient(135deg, #be4bdb, #7950f2); border-color: transparent; color: #fff; }
+    .panel { display: none; max-width: 520px; }
+    .panel.on { display: block; }
+    .box {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 1rem;
+      border: 1px solid var(--line);
+    }
+    .box h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+    .hint { font-size: 0.8rem; color: var(--muted); margin: 0 0 0.85rem; }
+
+    #tris2Grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      max-width: 270px;
+    }
+    #tris2Grid button {
+      aspect-ratio: 1;
+      font-size: 1.95rem;
+      font-weight: 700;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      background: rgba(0,0,0,0.35);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 0.12s;
+    }
+    #tris2Grid button:not(:disabled):active { transform: scale(0.94); }
+    #tris2Grid button.just-placed { animation: pop 0.35s ease; }
+    @keyframes pop {
+      0% { transform: scale(0.2); opacity: 0.5; }
+      60% { transform: scale(1.12); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    #tris2Grid button.win-line {
+      border-color: #ffd43b;
+      box-shadow: 0 0 16px rgba(255, 212, 59, 0.45);
+      background: rgba(255, 212, 59, 0.12);
+    }
+    #tris2Grid button:disabled { cursor: default; }
+    #tris2Grid button.p1 { color: var(--p1); }
+    #tris2Grid button.p2 { color: var(--p2); }
+    .turn { margin: 0.65rem 0; font-weight: 700; min-height: 1.5em; }
+    .turn span.p1 { color: var(--p1); }
+    .turn span.p2 { color: var(--p2); }
+    #tris2Taunt { font-size: 0.9rem; color: #da77f2; font-style: italic; min-height: 1.3em; margin-top: 0.35rem; }
+
+    #pongCv {
+      display: block;
+      width: 100%;
+      max-width: 480px;
+      height: auto;
+      border-radius: 12px;
+      background: #0a1f12;
+      touch-action: none;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.06);
+    }
+    .pongHud {
+      display: flex;
+      justify-content: space-between;
+      max-width: 480px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 0.35rem;
+    }
+    .pongHud .a { color: var(--p1); }
+    .pongHud .b { color: var(--p2); }
+    #pongState { color: var(--muted); font-size: 0.78rem; text-align: center; flex: 1; }
+
+    .mash-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      max-width: 480px;
+      margin-top: 0.5rem;
+    }
+    .mash-side {
+      border-radius: 12px;
+      padding: 0.85rem;
+      text-align: center;
+      border: 2px solid var(--line);
+    }
+    .mash-side.s1 { border-color: var(--p1); background: rgba(255,107,107,0.1); }
+    .mash-side.s2 { border-color: var(--p2); background: rgba(77,171,247,0.1); }
+    .mash-side .big { font-size: 2.6rem; font-weight: 800; line-height: 1.1; margin: 0.25rem 0; }
+    .mash-side .key { font-size: 1.35rem; font-weight: 700; }
+    .mash-bar {
+      height: 10px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.35);
+      margin-top: 0.5rem;
+      overflow: hidden;
+    }
+    .mash-bar > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      border-radius: 6px;
+      transition: width 0.08s;
+    }
+    .mash-side.s1 .mash-bar > i { background: linear-gradient(90deg, #ff8787, #ff6b6b); }
+    .mash-side.s2 .mash-bar > i { background: linear-gradient(90deg, #74c0fc, #339af0); }
+    #mashTimer {
+      text-align: center;
+      font-size: 1.65rem;
+      font-weight: 800;
+      margin: 0.45rem 0;
+      color: #ffd43b;
+      text-shadow: 0 0 20px rgba(255, 212, 59, 0.35);
+    }
+    #mashMsg { text-align: center; min-height: 2em; font-weight: 600; margin-top: 0.35rem; font-size: 1rem; }
+    #mashStreak { text-align: center; font-size: 0.85rem; color: #ff922b; min-height: 1.2em; font-weight: 700; }
+
+    .btn {
+      margin-top: 0.65rem;
+      padding: 0.55rem 1.1rem;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #495057;
+      color: #fff;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn-go {
+      background: linear-gradient(180deg, #ff922b, #fd7e14);
+      color: #1a0d00;
+      font-size: 1rem;
+      box-shadow: 0 4px 0 #c2410c;
+    }
+    .btn-go:active { transform: translateY(2px); box-shadow: 0 2px 0 #c2410c; }
+
+    #game2p { outline: none; }
+    #game2p:focus { box-shadow: 0 0 0 3px rgba(121, 80, 242, 0.5); border-radius: 14px; }
+    nav { margin-top: 1.25rem; font-size: 0.82rem; color: var(--muted); }
+    nav a { color: #4dabf7; }
+  </style>
+</head>
+<body>
+  <div id="game2p" tabindex="0" aria-label="Giochi due giocatori">
+    <h1>Due umani · party mode</h1>
+    <p class="party">Coriandoli, countdown 3-2-1, barre furiosi, tris che esplode in oro. Solo persone vere, niente computer.</p>
+    <p class="intro">
+      Clicca qui dentro prima dei tasti. <strong>Rosso</strong> = giocatore 1 · <strong>Blu</strong> = giocatore 2.
+    </p>
+
+    <div class="tabs">
+      <button type="button" class="on" data-tab="tris">1 · Tris epico</button>
+      <button type="button" data-tab="pong">2 · Pong frenetico</button>
+      <button type="button" data-tab="mash">3 · Duello barbaro</button>
+    </div>
+
+    <div id="panel-tris" class="panel on box">
+      <h2>Tris a due</h2>
+      <p class="hint">Turni: <span class="p1">X</span> poi <span class="p2">O</span>. La riga vincente si illumina · coriandoli se qualcuno vince.</p>
+      <div class="turn" id="tris2Turn">Tocca a <span class="p1">X</span></div>
+      <div id="tris2Grid"></div>
+      <p id="tris2Taunt"></p>
+      <p id="tris2End" style="min-height:1.4em;font-weight:600;margin-top:0.25rem;"></p>
+      <button type="button" class="btn" id="tris2Reset">Rivincita</button>
+    </div>
+
+    <div id="panel-pong" class="panel box" hidden>
+      <h2>Pong</h2>
+      <p class="hint">
+        <span class="p1">P1</span> <strong>W/S</strong> · <span class="p2">P2</span> frecce <strong>↑↓</strong>.
+        <strong>Spazio</strong>: countdown poi via! Primo a <strong>7</strong>. <strong>P</strong> pausa. Scia della palla inclusa.
+      </p>
+      <div class="pongHud">
+        <span class="a">P1 · <span id="pongS1">0</span></span>
+        <span id="pongState">Spazio = countdown</span>
+        <span class="b"><span id="pongS2">0</span> · P2</span>
+      </div>
+      <canvas id="pongCv" width="480" height="300"></canvas>
+    </div>
+
+    <div id="panel-mash" class="panel box" hidden>
+      <h2>Duello barbaro</h2>
+      <p class="hint">
+        Prima <strong>3-2-1-VIA</strong>, poi <strong>15 secondi</strong> di follia.
+        <span class="p1">P1</span> <strong>Q</strong> · <span class="p2">P2</span> <strong>P</strong>. Tocca il tuo lato su mobile. Vibrazione se il telefono la supporta.
+      </p>
+      <button type="button" class="btn btn-go" id="mashStart">Preparati al caos</button>
+      <div id="mashTimer">—</div>
+      <p id="mashStreak"></p>
+      <div class="mash-wrap">
+        <div class="mash-side s1">
+          <div>Giocatore 1</div>
+          <div class="key">Q</div>
+          <div class="big" id="mashC1">0</div>
+          <div class="mash-bar"><i id="mashB1"></i></div>
+        </div>
+        <div class="mash-side s2">
+          <div>Giocatore 2</div>
+          <div class="key">P</div>
+          <div class="big" id="mashC2">0</div>
+          <div class="mash-bar"><i id="mashB2"></i></div>
+        </div>
+      </div>
+      <p id="mashMsg"></p>
+    </div>
+  </div>
+
+  <nav><a href="entra.html">← Entra</a> · <a href="tre-giochi.html">Modalità 1 giocatore</a></nav>
+
+  <script>
+    function confettiBurst(cx, cy) {
+      const c = document.createElement("canvas");
+      c.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:9999;width:100%;height:100%";
+      document.body.appendChild(c);
+      const W = (c.width = innerWidth),
+        H = (c.height = innerHeight);
+      const x = c.getContext("2d");
+      const colors = ["#ff6b6b", "#ffd43b", "#69db7c", "#4dabf7", "#da77f2", "#fff", "#ff922b"];
+      const parts = [];
+      for (let i = 0; i < 100; i++) {
+        parts.push({
+          x: cx !== undefined ? cx : W / 2,
+          y: cy !== undefined ? cy : H * 0.35,
+          vx: (Math.random() - 0.5) * 18,
+          vy: -12 - Math.random() * 10,
+          r: 3 + Math.random() * 5,
+          rot: Math.random() * 6,
+          vr: (Math.random() - 0.5) * 0.35,
+          co: colors[(Math.random() * colors.length) | 0],
+        });
+      }
+      const t0 = performance.now();
+      let tPrev = t0;
+      function frame(now) {
+        const dt = Math.min(45, now - tPrev);
+        tPrev = now;
+        x.clearRect(0, 0, W, H);
+        for (const p of parts) {
+          p.vy += 0.42 * (dt / 16);
+          p.x += p.vx * (dt / 16);
+          p.y += p.vy * (dt / 16);
+          p.rot += p.vr * (dt / 16);
+          x.save();
+          x.translate(p.x, p.y);
+          x.rotate(p.rot);
+          x.fillStyle = p.co;
+          x.fillRect(-p.r, -p.r, p.r * 2, p.r * 0.65);
+          x.restore();
+        }
+        if (now - t0 < 2600) requestAnimationFrame(frame);
+        else c.remove();
+      }
+      requestAnimationFrame(frame);
+    }
+
+    const root = document.getElementById("game2p");
+    root.addEventListener("pointerdown", () => root.focus());
+
+    document.querySelectorAll(".tabs button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-tab");
+        document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b === btn));
+        document.querySelectorAll(".panel").forEach((p) => {
+          const on = p.id === "panel-" + id;
+          p.classList.toggle("on", on);
+          p.hidden = !on;
+        });
+        if (id === "pong") pongResetBall();
+        root.focus();
+      });
+    });
+
+    function typing() {
+      const t = document.activeElement && document.activeElement.tagName;
+      return t === "INPUT" || t === "TEXTAREA";
+    }
+
+    const taunts = [
+      "Leggenda!",
+      "Che mossa!",
+      "La folla impazzisce!",
+      "Imbarazzante per l’altro!",
+      "Sei un mostro!",
+    ];
+
+    /* ========== Tris ========== */
+    const tris2Grid = document.getElementById("tris2Grid");
+    const tris2Turn = document.getElementById("tris2Turn");
+    const tris2End = document.getElementById("tris2End");
+    const tris2Taunt = document.getElementById("tris2Taunt");
+    let b2 = Array(9).fill("");
+    let turnX = true;
+    let over2 = false;
+    let winCells = null;
+
+    const winLines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6],
+    ];
+
+    function checkWin() {
+      for (const [a, b, c] of winLines) {
+        if (b2[a] && b2[a] === b2[b] && b2[a] === b2[c]) return { who: b2[a], cells: [a, b, c] };
+      }
+      return null;
+    }
+
+    function renderTris2(lastIdx) {
+      tris2Grid.innerHTML = "";
+      b2.forEach((cell, i) => {
+        const bt = document.createElement("button");
+        bt.type = "button";
+        bt.textContent = cell;
+        if (cell === "X") bt.classList.add("p1");
+        if (cell === "O") bt.classList.add("p2");
+        if (winCells && winCells.includes(i)) bt.classList.add("win-line");
+        if (i === lastIdx && cell) bt.classList.add("just-placed");
+        bt.disabled = over2 || cell !== "";
+        bt.addEventListener("click", () => {
+          if (over2 || b2[i]) return;
+          b2[i] = turnX ? "X" : "O";
+          const w = checkWin();
+          if (w) {
+            over2 = true;
+            winCells = w.cells;
+            tris2End.textContent =
+              w.who === "X" ? "Vince il giocatore 1!" : "Vince il giocatore 2!";
+            tris2Turn.textContent = "Fine partita";
+            tris2Taunt.textContent = taunts[(Math.random() * taunts.length) | 0];
+            confettiBurst();
+            renderTris2(i);
+            return;
+          }
+          if (!b2.includes("")) {
+            over2 = true;
+            winCells = null;
+            tris2End.textContent = "Pareggio — nessuno in ginocchio!";
+            tris2Turn.textContent = "Rivincita?";
+            tris2Taunt.textContent = "";
+            renderTris2(i);
+            return;
+          }
+          turnX = !turnX;
+          tris2End.textContent = "";
+          tris2Taunt.textContent = "";
+          tris2Turn.innerHTML = turnX
+            ? 'Tocca a <span class="p1">X</span>'
+            : 'Tocca a <span class="p2">O</span>';
+          renderTris2(i);
+        });
+        tris2Grid.appendChild(bt);
+      });
+    }
+
+    document.getElementById("tris2Reset").onclick = () => {
+      b2 = Array(9).fill("");
+      turnX = true;
+      over2 = false;
+      winCells = null;
+      tris2End.textContent = "";
+      tris2Taunt.textContent = "";
+      tris2Turn.innerHTML = 'Tocca a <span class="p1">X</span>';
+      renderTris2(-1);
+    };
+    renderTris2(-1);
+
+    /* ========== Pong ========== */
+    const pongCv = document.getElementById("pongCv");
+    const pongCtx = pongCv.getContext("2d");
+    const PW = 480,
+      PH = 300;
+    let py1 = 110,
+      py2 = 110,
+      bx = 240,
+      by = 150,
+      bvx = 5,
+      bvy = 3,
+      s1 = 0,
+      s2 = 0,
+      pongRun = false,
+      pongPause = false,
+      pongRaf = 0,
+      pongSeq = false,
+      trail = [],
+      flash = 0;
+    const ph = 56,
+      pw = 10,
+      padX1 = 14,
+      padX2 = PW - 14 - pw;
+
+    function pongResetBall() {
+      bx = PW / 2;
+      by = PH / 2;
+      bvx = (Math.random() < 0.5 ? 1 : -1) * (5 + Math.random());
+      bvy = (Math.random() * 2 - 1) * 4.5;
+      trail = [];
+    }
+
+    function tinyBeep(hz) {
+      try {
+        const a = new (window.AudioContext || window.webkitAudioContext)();
+        const o = a.createOscillator();
+        const g = a.createGain();
+        o.connect(g);
+        g.connect(a.destination);
+        o.frequency.value = hz;
+        g.gain.value = 0.04;
+        o.start();
+        o.stop(a.currentTime + 0.04);
+      } catch (_) {}
+    }
+
+    function pongDraw() {
+      pongCtx.fillStyle = "#0a1f12";
+      pongCtx.fillRect(0, 0, PW, PH);
+      const g = pongCtx.createLinearGradient(0, 0, PW, PH);
+      g.addColorStop(0, "rgba(255,80,80,0.08)");
+      g.addColorStop(1, "rgba(80,160,255,0.08)");
+      pongCtx.fillStyle = g;
+      pongCtx.fillRect(0, 0, PW, PH);
+      if (performance.now() < flash) {
+        pongCtx.fillStyle = "rgba(255, 200, 100, 0.15)";
+        pongCtx.fillRect(0, 0, PW, PH);
+      }
+
+      pongCtx.setLineDash([8, 12]);
+      pongCtx.strokeStyle = "rgba(255,255,255,0.12)";
+      pongCtx.beginPath();
+      pongCtx.moveTo(PW / 2, 0);
+      pongCtx.lineTo(PW / 2, PH);
+      pongCtx.stroke();
+      pongCtx.setLineDash([]);
+
+      trail.forEach((t, i) => {
+        pongCtx.beginPath();
+        pongCtx.arc(t.x, t.y, 5, 0, Math.PI * 2);
+        pongCtx.fillStyle = "rgba(255,255,255," + (i / trail.length) * 0.25 + ")";
+        pongCtx.fill();
+      });
+
+      pongCtx.fillStyle = "#ff6b6b";
+      pongCtx.fillRect(padX1, py1, pw, ph);
+      pongCtx.fillStyle = "#4dabf7";
+      pongCtx.fillRect(padX2, py2, pw, ph);
+      pongCtx.fillStyle = "#fff";
+      pongCtx.beginPath();
+      pongCtx.arc(bx, by, 7, 0, Math.PI * 2);
+      pongCtx.fill();
+    }
+
+    function pongLoop() {
+      if (!pongRun || pongPause) return;
+      bx += bvx;
+      by += bvy;
+      trail.push({ x: bx, y: by });
+      if (trail.length > 14) trail.shift();
+
+      if (by < 10 || by > PH - 10) {
+        bvy *= -1;
+        tinyBeep(300);
+      }
+
+      if (bx <= padX1 + pw && by > py1 && by < py1 + ph) {
+        bx = padX1 + pw + 1;
+        bvx = Math.abs(bvx) * 1.035;
+        bvy += (by - (py1 + ph / 2)) * 0.065;
+        bvx = Math.min(bvx, 11);
+        tinyBeep(420);
+      }
+      if (bx >= padX2 && by > py2 && by < py2 + ph) {
+        bx = padX2 - 1;
+        bvx = -Math.abs(bvx) * 1.035;
+        bvy += (by - (py2 + ph / 2)) * 0.065;
+        bvx = Math.max(bvx, -11);
+        tinyBeep(380);
+      }
+
+      if (bx < -5) {
+        s2 += 1;
+        document.getElementById("pongS2").textContent = String(s2);
+        flash = performance.now() + 120;
+        tinyBeep(180);
+        if (s2 >= 7) {
+          pongRun = false;
+          document.getElementById("pongState").textContent = "P2 DOMINA! Spazio";
+          confettiBurst(innerWidth * 0.75, innerHeight * 0.4);
+          return;
+        }
+        pongResetBall();
+      }
+      if (bx > PW + 5) {
+        s1 += 1;
+        document.getElementById("pongS1").textContent = String(s1);
+        flash = performance.now() + 120;
+        tinyBeep(200);
+        if (s1 >= 7) {
+          pongRun = false;
+          document.getElementById("pongState").textContent = "P1 DOMINA! Spazio";
+          confettiBurst(innerWidth * 0.25, innerHeight * 0.4);
+          return;
+        }
+        pongResetBall();
+      }
+
+      pongDraw();
+      pongRaf = requestAnimationFrame(pongLoop);
+    }
+
+    function pongCountdownThenStart() {
+      if (pongSeq) return;
+      pongSeq = true;
+      const el = document.getElementById("pongState");
+      const seq = ["3", "2", "1", "VIA!"];
+      let i = 0;
+      function next() {
+        if (i >= seq.length) {
+          pongSeq = false;
+          pongRun = true;
+          pongPause = false;
+          el.textContent = "In corso · P pausa";
+          pongResetBall();
+          cancelAnimationFrame(pongRaf);
+          pongLoop();
+          return;
+        }
+        el.textContent = seq[i];
+        if (i < 3) tinyBeep(500 - i * 80);
+        else tinyBeep(700);
+        i++;
+        setTimeout(next, i <= 3 ? 520 : 380);
+      }
+      next();
+    }
+
+    const keys = {};
+    window.addEventListener("keydown", (e) => {
+      if (typing() || !root.contains(document.activeElement)) return;
+      keys[e.code] = true;
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (!document.getElementById("panel-pong").classList.contains("on")) return;
+        if (pongSeq) return;
+        if (!pongRun && (s1 >= 7 || s2 >= 7)) {
+          s1 = s2 = 0;
+          document.getElementById("pongS1").textContent = "0";
+          document.getElementById("pongS2").textContent = "0";
+        }
+        if (!pongRun) {
+          pongPause = false;
+          pongDraw();
+          pongCountdownThenStart();
+        }
+      }
+      if (e.code === "KeyP" && document.getElementById("panel-pong").classList.contains("on") && pongRun && !pongSeq) {
+        pongPause = !pongPause;
+        document.getElementById("pongState").textContent = pongPause ? "Pausa" : "In corso · P pausa";
+        if (!pongPause) {
+          cancelAnimationFrame(pongRaf);
+          pongLoop();
+        }
+      }
+    });
+    window.addEventListener("keyup", (e) => {
+      keys[e.code] = false;
+    });
+
+    setInterval(() => {
+      if (!document.getElementById("panel-pong").classList.contains("on") || !pongRun || pongPause || pongSeq) return;
+      const sp = 6.5;
+      if (keys["KeyW"]) py1 = Math.max(4, py1 - sp);
+      if (keys["KeyS"]) py1 = Math.min(PH - ph - 4, py1 + sp);
+      if (keys["ArrowUp"]) py2 = Math.max(4, py2 - sp);
+      if (keys["ArrowDown"]) py2 = Math.min(PH - ph - 4, py2 + sp);
+    }, 1000 / 60);
+
+    pongDraw();
+
+    /* ========== Mash ========== */
+    let mashOn = false,
+      mashEnd = 0,
+      mashIv = null,
+      mashBusy = false,
+      c1 = 0,
+      c2 = 0;
+
+    function mashBars() {
+      const m = Math.max(c1, c2, 24);
+      document.getElementById("mashB1").style.width = Math.min(100, (c1 / m) * 100) + "%";
+      document.getElementById("mashB2").style.width = Math.min(100, (c2 / m) * 100) + "%";
+    }
+
+    function mashStreakMsg() {
+      const el = document.getElementById("mashStreak");
+      if (c1 > c2 + 8) el.textContent = "P1 sta spaccando!";
+      else if (c2 > c1 + 8) el.textContent = "P2 inarrestabile!";
+      else if (Math.abs(c1 - c2) <= 3 && c1 + c2 > 20) el.textContent = "Testa a testa folle!";
+      else el.textContent = "";
+    }
+
+    function vibrate() {
+      if (navigator.vibrate) navigator.vibrate(12);
+    }
+
+    function mashAdd(d1, d2) {
+      if (d1) {
+        c1 += d1;
+        document.getElementById("mashC1").textContent = String(c1);
+        vibrate();
+      }
+      if (d2) {
+        c2 += d2;
+        document.getElementById("mashC2").textContent = String(c2);
+        vibrate();
+      }
+      mashBars();
+      mashStreakMsg();
+    }
+
+    function mashFinish() {
+      mashBusy = false;
+      mashOn = false;
+      clearInterval(mashIv);
+      mashIv = null;
+      document.getElementById("mashTimer").textContent = "STOP!";
+      const msg = document.getElementById("mashMsg");
+      if (c1 > c2) {
+        msg.textContent = "P1 VINCE " + c1 + " a " + c2 + " — leggenda!";
+        confettiBurst(innerWidth * 0.28, innerHeight * 0.45);
+      } else if (c2 > c1) {
+        msg.textContent = "P2 VINCE " + c2 + " a " + c1 + " — mostro!";
+        confettiBurst(innerWidth * 0.72, innerHeight * 0.45);
+      } else {
+        msg.textContent = "PAREGGIO ASSURDO: " + c1 + " a " + c2;
+        confettiBurst();
+      }
+      document.getElementById("mashStreak").textContent = "";
+    }
+
+    function mashGo() {
+      c1 = c2 = 0;
+      document.getElementById("mashC1").textContent = "0";
+      document.getElementById("mashC2").textContent = "0";
+      document.getElementById("mashMsg").textContent = "";
+      mashBars();
+      const el = document.getElementById("mashTimer");
+      const seq = ["3", "2", "1", "VIA!!!"];
+      let i = 0;
+      function next() {
+        if (i >= seq.length) {
+          mashOn = true;
+          mashEnd = performance.now() + 15000;
+          mashIv = setInterval(() => {
+            const left = Math.max(0, (mashEnd - performance.now()) / 1000);
+            el.textContent = left.toFixed(1) + " s";
+            if (left <= 0) mashFinish();
+          }, 40);
+          return;
+        }
+        el.textContent = seq[i];
+        tinyBeep(480 - i * 70);
+        i++;
+        setTimeout(next, 550);
+      }
+      next();
+      root.focus();
+    }
+
+    document.getElementById("mashStart").onclick = () => {
+      if (mashBusy) return;
+      mashBusy = true;
+      mashGo();
+    };
+
+    window.addEventListener("keydown", (e) => {
+      if (!mashOn || e.repeat) return;
+      if (!document.getElementById("panel-mash").classList.contains("on")) return;
+      if (!root.contains(document.activeElement) || typing()) return;
+      if (e.key === "q" || e.key === "Q") mashAdd(1, 0);
+      if (e.key === "p" || e.key === "P") mashAdd(0, 1);
+    });
+
+    document.querySelector(".mash-wrap").addEventListener("pointerdown", (e) => {
+      if (!mashOn) return;
+      const r = e.currentTarget.getBoundingClientRect();
+      const mid = r.left + r.width / 2;
+      if (e.clientX < mid) mashAdd(1, 0);
+      else mashAdd(0, 1);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Piccoli lavori</title>
+  <style>
+    :root {
+      --bg: #151a22;
+      --card: #1f2632;
+      --text: #e7ebf0;
+      --muted: #8b97a8;
+      --a: #4dabf7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 1.25rem 1rem 2rem;
+      line-height: 1.45;
+    }
+    h1 { font-size: 1.25rem; margin: 0 0 0.25rem; }
+    .intro { color: var(--muted); font-size: 0.88rem; margin: 0 0 1.25rem; max-width: 520px; }
+    .grid {
+      display: grid;
+      gap: 1rem;
+      max-width: 520px;
+    }
+    section {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 1rem 1.1rem;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    section h2 {
+      margin: 0 0 0.65rem;
+      font-size: 0.95rem;
+      font-weight: 650;
+      color: var(--a);
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      padding: 0.5rem 0.9rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      background: #339af0;
+      color: #fff;
+    }
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: scale(0.98); }
+    .out {
+      margin-top: 0.65rem;
+      font-size: 1.4rem;
+      font-weight: 700;
+      min-height: 1.5em;
+    }
+    .msg {
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+      color: #c5e7a8;
+      font-style: italic;
+    }
+    nav {
+      margin-top: 1.5rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    nav a { color: var(--a); }
+    .play-zone {
+      position: relative;
+      height: 190px;
+      margin-top: 0.6rem;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+      display: none;
+      border: 2px dashed rgba(77, 171, 247, 0.35);
+    }
+    .play-zone.on { display: block; }
+    #targetBtn {
+      position: absolute;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      font-size: 1.75rem;
+      padding: 0;
+      line-height: 48px;
+      background: linear-gradient(145deg, #ff6b6b, #c92a2a);
+      box-shadow: 0 4px 0 #862e2e;
+      border: 2px solid #fff3;
+      transition: transform 0.06s;
+    }
+    #targetBtn:active { transform: scale(0.92); }
+    .hud-game {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-top: 0.45rem;
+      min-height: 1.4em;
+      color: #ffd43b;
+    }
+    .btn-party {
+      background: linear-gradient(180deg, #e599f7, #9c36b5);
+      font-size: 1rem;
+    }
+    .btn-party:hover { filter: brightness(1.1); }
+  </style>
+</head>
+<body>
+  <h1>Piccoli lavori</h1>
+  <p class="intro">Mini-esperimenti + un gioco veloce e una festa con coriandoli. Apri dal browser.</p>
+
+  <div class="grid">
+    <section>
+      <h2>1 · Contatore</h2>
+      <button type="button" id="btnCount">Clicca</button>
+      <div class="out" id="countOut">0</div>
+      <button type="button" id="btnZero" style="margin-top:0.5rem;background:#495057;font-size:0.8rem;">Azzera</button>
+    </section>
+
+    <section>
+      <h2>2 · Dado</h2>
+      <button type="button" id="btnDice">Lancia il dado</button>
+      <div class="out" id="diceOut">—</div>
+    </section>
+
+    <section>
+      <h2>3 · Colore sfondo</h2>
+      <button type="button" id="btnColor">Colore a caso</button>
+      <p class="msg" id="hexOut" style="color:var(--muted);font-style:normal;font-size:0.8rem;"></p>
+    </section>
+
+    <section>
+      <h2>4 · Messaggio</h2>
+      <button type="button" id="btnQuote">Nuova frase</button>
+      <p class="msg" id="quoteOut"></p>
+    </section>
+
+    <section>
+      <h2>5 · Acchiappa il mostro (12 sec)</h2>
+      <p style="margin:0 0 0.5rem;font-size:0.82rem;color:var(--muted)">
+        Premi <strong>Via!</strong> poi clicca il mostro ogni volta che scappa. Record salvato in questa sessione.
+      </p>
+      <button type="button" id="btnStartGame">Via!</button>
+      <div class="hud-game" id="gameHud">Punti: 0 · Tempo: —</div>
+      <div class="play-zone" id="playZone" aria-hidden="true">
+        <button type="button" id="targetBtn">👾</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>6 · Festa</h2>
+      <p style="margin:0 0 0.5rem;font-size:0.82rem;color:var(--muted)">Coriandoli sullo schermo (niente suono).</p>
+      <button type="button" class="btn-party" id="btnConfetti">Festa!</button>
+    </section>
+  </div>
+
+  <nav>
+    Altri file: <a href="index.html">index</a> ·
+    <a href="lista-attivita.html">lista attività</a> ·
+    <a href="uccello-trampolino.html">uccello</a>
+  </nav>
+
+  <script>
+    let n = 0;
+    document.getElementById("btnCount").onclick = () => {
+      n += 1;
+      document.getElementById("countOut").textContent = String(n);
+    };
+    document.getElementById("btnZero").onclick = () => {
+      n = 0;
+      document.getElementById("countOut").textContent = "0";
+    };
+
+    const diceOut = document.getElementById("diceOut");
+    let diceIv = null;
+    document.getElementById("btnDice").onclick = () => {
+      if (diceIv) clearInterval(diceIv);
+      diceOut.textContent = "🎲…";
+      let spins = 0;
+      diceIv = setInterval(() => {
+        diceOut.textContent = String(1 + Math.floor(Math.random() * 6));
+        spins += 1;
+        if (spins > 7) {
+          clearInterval(diceIv);
+          diceIv = null;
+          diceOut.textContent = String(1 + Math.floor(Math.random() * 6));
+        }
+      }, 80);
+    };
+
+    document.getElementById("btnColor").onclick = () => {
+      const h = Math.floor(Math.random() * 360);
+      const s = 35 + Math.random() * 25;
+      const l = 18 + Math.random() * 12;
+      const bg = "hsl(" + h + "," + s + "%," + l + "%)";
+      document.body.style.background = bg;
+      document.getElementById("hexOut").textContent = "Sfondo: " + bg;
+    };
+
+    const frasi = [
+      "Oggi va bene anche un piccolo passo.",
+      "Hai già imparato qualcosa aprendo questa pagina.",
+      "Il codice è fatto di tentativi: continua così.",
+      "Ogni click è una piccola vittoria.",
+      "La curiosità è la tua superpotenza.",
+    ];
+    document.getElementById("btnQuote").onclick = () => {
+      document.getElementById("quoteOut").textContent =
+        frasi[Math.floor(Math.random() * frasi.length)];
+    };
+
+    const emojis = ["👾", "🤖", "🦄", "🐸", "👻", "🦖", "🐙"];
+    const playZone = document.getElementById("playZone");
+    const targetBtn = document.getElementById("targetBtn");
+    const gameHud = document.getElementById("gameHud");
+    let gameRun = false;
+    let gameScore = 0;
+    let gameEnd = 0;
+    let gameTick = 0;
+
+    function moveTarget() {
+      const w = targetBtn.offsetWidth;
+      const h = targetBtn.offsetHeight;
+      const maxX = playZone.clientWidth - w - 8;
+      const maxY = playZone.clientHeight - h - 8;
+      targetBtn.style.left = 4 + Math.random() * maxX + "px";
+      targetBtn.style.top = 4 + Math.random() * maxY + "px";
+      targetBtn.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    }
+
+    function beep() {
+      try {
+        const a = new (window.AudioContext || window.webkitAudioContext)();
+        const o = a.createOscillator();
+        const g = a.createGain();
+        o.connect(g);
+        g.connect(a.destination);
+        o.frequency.value = 520 + Math.random() * 180;
+        g.gain.value = 0.08;
+        o.start();
+        o.stop(a.currentTime + 0.06);
+      } catch (_) {}
+    }
+
+    document.getElementById("btnStartGame").onclick = () => {
+      if (gameRun) return;
+      gameRun = true;
+      gameScore = 0;
+      playZone.classList.add("on");
+      moveTarget();
+      gameEnd = performance.now() + 12000;
+      gameTick = requestAnimationFrame(function tick() {
+        if (!gameRun) return;
+        const left = Math.max(0, (gameEnd - performance.now()) / 1000);
+        gameHud.textContent =
+          "Punti: " + gameScore + " · Tempo: " + left.toFixed(1) + " s";
+        if (left <= 0) {
+          gameRun = false;
+          playZone.classList.remove("on");
+          const prev = parseInt(sessionStorage.getItem("plMonster") || "0", 10);
+          const best = Math.max(prev, gameScore);
+          sessionStorage.setItem("plMonster", String(best));
+          gameHud.textContent =
+            "Fine! Punti: " +
+            gameScore +
+            " · Record sessione: " +
+            best +
+            (gameScore >= best && gameScore > 0 ? " Nuovo record!" : "");
+          return;
+        }
+        gameTick = requestAnimationFrame(tick);
+      });
+    };
+
+    targetBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (!gameRun) return;
+      gameScore += 1;
+      beep();
+      moveTarget();
+    };
+
+    document.getElementById("btnConfetti").onclick = () => {
+      const c = document.createElement("canvas");
+      c.style.cssText =
+        "position:fixed;inset:0;pointer-events:none;z-index:9999;width:100%;height:100%";
+      document.body.appendChild(c);
+      const W = (c.width = innerWidth);
+      const H = (c.height = innerHeight);
+      const x = c.getContext("2d");
+      const parts = [];
+      const colors = ["#ff6b6b", "#ffd43b", "#69db7c", "#4dabf7", "#da77f2", "#fff"];
+      for (let i = 0; i < 120; i++) {
+        parts.push({
+          x: W / 2 + (Math.random() - 0.5) * 80,
+          y: H / 2,
+          vx: (Math.random() - 0.5) * 16,
+          vy: -10 - Math.random() * 14,
+          r: 3 + Math.random() * 5,
+          rot: Math.random() * 6,
+          vr: (Math.random() - 0.5) * 0.4,
+          c: colors[(Math.random() * colors.length) | 0],
+        });
+      }
+      const tStart = performance.now();
+      let tPrev = tStart;
+      function frame(now) {
+        const dt = Math.min(50, now - tPrev);
+        tPrev = now;
+        x.clearRect(0, 0, W, H);
+        for (const p of parts) {
+          p.vy += 0.45 * (dt / 16);
+          p.x += p.vx * (dt / 16);
+          p.y += p.vy * (dt / 16);
+          p.rot += p.vr * (dt / 16);
+          x.save();
+          x.translate(p.x, p.y);
+          x.rotate(p.rot);
+          x.fillStyle = p.c;
+          x.fillRect(-p.r, -p.r, p.r * 2, p.r * 0.7);
+          x.restore();
+        }
+        if (now - tStart < 2800) requestAnimationFrame(frame);
+        else c.remove();
+      }
+      requestAnimationFrame(frame);
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Coco — raccogli la rugiada</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      font-family: system-ui, sans-serif;
+      background: linear-gradient(180deg, #74c0fc 0%, #a5d8ff 40%, #8ce99a 40%, #2f9e44 100%);
+      color: #1a3d2e;
+    }
+    h1 { margin: 0 0 0.25rem; font-size: 1.35rem; }
+    p.sub { margin: 0 0 0.75rem; font-size: 0.85rem; max-width: 360px; text-align: center; line-height: 1.45; opacity: 0.9; }
+    #wrap {
+      position: relative;
+      width: min(100%, 380px);
+      height: 420px;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+      border: 4px solid #5c3d2e;
+      background: linear-gradient(180deg, #b8e8ff 0%, #d3f9d8 100%);
+      touch-action: none;
+    }
+    #wrap:focus { outline: 3px solid #fab005; outline-offset: 4px; }
+    canvas { display: block; width: 100%; height: 100%; }
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      width: min(100%, 380px);
+      margin-bottom: 0.45rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      text-align: center;
+      padding: 1rem;
+      z-index: 5;
+    }
+    #overlay.hidden { display: none; }
+    #overlay h2 { margin: 0 0 0.5rem; }
+    #overlay button {
+      margin-top: 0.75rem;
+      padding: 0.65rem 1.2rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      background: #ffd43b;
+      color: #3d2910;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #c9a227;
+    }
+    #overlay button:active { transform: translateY(2px); }
+    nav { margin-top: 1rem; font-size: 0.82rem; }
+    nav a { color: #1864ab; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>🥥 Coco</h1>
+  <p class="sub">Coco il cocco rotola e raccoglie le gocce 💧. Evita le pietre 🪨! Frecce o tap sinistra/destra. Clicca nel gioco prima di giocare.</p>
+  <div id="hud">
+    <span>Punti: <span id="sc">0</span></span>
+    <span>Vite: <span id="lv">3</span></span>
+  </div>
+  <div id="wrap" tabindex="0" role="application" aria-label="Gioco Coco">
+    <canvas id="c" width="380" height="420" aria-hidden="true"></canvas>
+    <div id="overlay">
+      <h2 id="ot">Coco</h2>
+      <p id="om">Raccogli le gocce, schiva le pietre.</p>
+      <button type="button" id="go">Gioca</button>
+    </div>
+  </div>
+  <nav><a href="entra.html">← Entra</a></nav>
+
+  <script>
+    const W = 380,
+      H = 420;
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const wrap = document.getElementById("wrap");
+    const overlay = document.getElementById("overlay");
+    const go = document.getElementById("go");
+
+    let cocoX = W / 2;
+    const cocoY = H - 55;
+    const cocoR = 28;
+    let vx = 0;
+    let score = 0;
+    let lives = 3;
+    let running = false;
+    let things = [];
+    let spawnT = 0;
+    let last = 0;
+    let raf = 0;
+
+    function reset() {
+      cocoX = W / 2;
+      vx = 0;
+      score = 0;
+      lives = 3;
+      things = [];
+      spawnT = 0;
+      document.getElementById("sc").textContent = "0";
+      document.getElementById("lv").textContent = "3";
+    }
+
+    function end(win) {
+      running = false;
+      cancelAnimationFrame(raf);
+      overlay.classList.remove("hidden");
+      document.getElementById("ot").textContent = win ? "Grande Coco!" : "Riprova!";
+      document.getElementById("om").textContent = win
+        ? "Hai fatto " + score + " punti. Coco è orgoglioso."
+        : "Coco ha perso tutte le vite. Punti: " + score;
+      go.textContent = "Ancora";
+    }
+
+    function loop(t) {
+      if (!running) return;
+      const dt = Math.min(40, t - last);
+      last = t;
+      const k = dt / 16;
+
+      cocoX += vx * k * 6;
+      if (cocoX < cocoR + 8) cocoX = cocoR + 8;
+      if (cocoX > W - cocoR - 8) cocoX = W - cocoR - 8;
+      vx *= Math.pow(0.88, k);
+
+      spawnT += dt;
+      if (spawnT > 520 + Math.random() * 400) {
+        spawnT = 0;
+        things.push({
+          x: 30 + Math.random() * (W - 60),
+          y: -20,
+          vy: 2.2 + Math.random() * 2.2,
+          bad: Math.random() < 0.28,
+        });
+      }
+
+      for (let i = things.length - 1; i >= 0; i--) {
+        const o = things[i];
+        o.y += o.vy * k;
+        const dx = o.x - cocoX;
+        const dy = o.y - cocoY;
+        const hit = dx * dx + dy * dy < (cocoR + 18) * (cocoR + 18);
+        if (hit) {
+          if (o.bad) {
+            lives -= 1;
+            document.getElementById("lv").textContent = String(lives);
+            things.splice(i, 1);
+            if (lives <= 0) {
+              end(false);
+              return;
+            }
+          } else {
+            score += 10;
+            document.getElementById("sc").textContent = String(score);
+            things.splice(i, 1);
+            if (score >= 200) {
+              end(true);
+              return;
+            }
+          }
+          continue;
+        }
+        if (o.y > H + 30) things.splice(i, 1);
+      }
+
+      draw();
+      raf = requestAnimationFrame(loop);
+    }
+
+    function draw() {
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "#a8e0ff");
+      g.addColorStop(0.55, "#c5f6cb");
+      g.addColorStop(1, "#8fd99a");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.fillStyle = "rgba(46, 125, 50, 0.35)";
+      ctx.fillRect(0, H - 28, W, 28);
+
+      for (const o of things) {
+        ctx.font = "26px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(o.bad ? "🪨" : "💧", o.x, o.y);
+      }
+
+      ctx.save();
+      ctx.translate(cocoX, cocoY);
+      ctx.rotate(Math.sin(performance.now() / 200) * 0.08);
+      ctx.font = "48px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🥥", 0, 0);
+      ctx.restore();
+
+      if (score > 0 && score < 200) {
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.fillRect(W / 2 - 70, 12, 140, 8);
+        ctx.fillStyle = "#ffd43b";
+        ctx.fillRect(W / 2 - 70, 12, (140 * score) / 200, 8);
+      }
+    }
+
+    go.onclick = () => {
+      reset();
+      overlay.classList.add("hidden");
+      running = true;
+      last = performance.now();
+      wrap.focus();
+      raf = requestAnimationFrame(loop);
+    };
+
+    wrap.addEventListener("keydown", (e) => {
+      if (!running) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        vx = -5;
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        vx = 5;
+      }
+    });
+
+    wrap.addEventListener("pointerdown", (e) => {
+      wrap.focus();
+      if (!running) return;
+      const r = wrap.getBoundingClientRect();
+      const cx = e.clientX - r.left;
+      vx = cx < r.width / 2 ? -5.5 : 5.5;
+    });
+
+    draw();
+  </script>
+</body>
+</html>

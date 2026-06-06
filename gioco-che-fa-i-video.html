@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Avventure video — gioca e pubblica</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, "Segoe UI", sans-serif;
+      background: linear-gradient(165deg, #12101a 0%, #1e1a2e 40%, #252040 100%);
+      color: #d4cfe8;
+      padding: 0.75rem 0.85rem 1.25rem;
+    }
+    h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 0 0 0.3rem;
+      text-align: center;
+      color: #f0e8ff;
+    }
+    .intro {
+      text-align: center;
+      font-size: 0.82rem;
+      color: #9a92b5;
+      max-width: 540px;
+      margin: 0 auto 0.85rem;
+      line-height: 1.45;
+    }
+    #app {
+      width: 100%;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.45rem;
+      margin-bottom: 0.75rem;
+    }
+    @media (min-width: 400px) {
+      .stats { grid-template-columns: repeat(3, 1fr); }
+    }
+    .stat {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 0.55rem 0.65rem;
+      font-size: 0.78rem;
+    }
+    .stat strong {
+      display: block;
+      font-size: 1.05rem;
+      color: #fff;
+      margin-top: 0.15rem;
+    }
+    .energy-bar {
+      height: 6px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.35);
+      margin-top: 0.35rem;
+      overflow: hidden;
+    }
+    .energy-bar i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #51cf66, #94d82d);
+      border-radius: 4px;
+      transition: width 0.25s ease;
+    }
+    .panel {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      border: 1px solid rgba(168, 130, 255, 0.25);
+      margin-bottom: 0.65rem;
+    }
+    .panel h2 {
+      margin: 0 0 0.55rem;
+      font-size: 0.92rem;
+      color: #c4b5fd;
+      font-weight: 650;
+    }
+    .choices {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    button.choice {
+      width: 100%;
+      text-align: left;
+      padding: 0.65rem 0.75rem;
+      border-radius: 11px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: linear-gradient(180deg, #3d3558, #2a243f);
+      color: #e8e2f5;
+      font-size: 0.84rem;
+      cursor: pointer;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    button.choice:hover:not(:disabled) {
+      filter: brightness(1.08);
+      border-color: rgba(168, 130, 255, 0.45);
+    }
+    button.choice:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.choice small {
+      display: block;
+      font-weight: 500;
+      color: #a89cc8;
+      font-size: 0.76rem;
+      margin-top: 0.2rem;
+    }
+    #gameWrap {
+      display: none;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid rgba(255, 107, 107, 0.35);
+      margin-bottom: 0.5rem;
+    }
+    #gameWrap.on { display: block; }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      touch-action: none;
+      background: #1a1528;
+    }
+    .game-hud {
+      font-size: 0.76rem;
+      color: #b8aed0;
+      margin: 0.35rem 0 0.5rem;
+      line-height: 1.4;
+    }
+    .game-hud kbd {
+      font-size: 0.72em;
+      padding: 0.08rem 0.3rem;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .video-card {
+      display: none;
+      background: linear-gradient(145deg, #2d2640, #1a1528);
+      border: 2px solid #ff6b6b;
+      border-radius: 14px;
+      padding: 0.85rem;
+      margin-bottom: 0.65rem;
+      text-align: center;
+    }
+    .video-card.on { display: block; }
+    .thumb {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #ff6b6b 0%, #845ef7 50%, #339af0 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      margin-bottom: 0.65rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .thumb::after {
+      content: "▶";
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.8rem;
+      color: rgba(255, 255, 255, 0.92);
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    }
+    .video-card h3 {
+      margin: 0 0 0.35rem;
+      font-size: 0.95rem;
+      color: #fff;
+    }
+    .video-card .meta {
+      font-size: 0.8rem;
+      color: #a89cc8;
+      margin-bottom: 0.65rem;
+    }
+    .log {
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 12px;
+      padding: 0.65rem 0.75rem;
+      font-size: 0.78rem;
+      color: #b8aed0;
+      max-height: 160px;
+      overflow-y: auto;
+      line-height: 1.45;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .log p { margin: 0 0 0.45rem; }
+    .log .ok { color: #7ae582; }
+    .log .meh { color: #ffd43b; }
+    .log .bad { color: #ff8787; }
+    .tower-text {
+      font-size: 0.86rem;
+      line-height: 1.5;
+      color: #d4cfe8;
+      margin-bottom: 0.65rem;
+      min-height: 3.5rem;
+    }
+    nav { margin-top: 1rem; text-align: center; font-size: 0.82rem; }
+    nav a { color: #b197fc; font-weight: 600; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>Avventure → Video</h1>
+  <p class="intro">
+    Scegli un’<strong>avventura</strong>, giocala fino alla fine: al traguardo la partita diventa
+    automaticamente un <strong>video</strong> sul tuo canale (titolo, miniature e visualizzazioni).
+  </p>
+  <div id="app">
+    <div class="stats">
+      <div class="stat">Giorno<strong id="day">1</strong></div>
+      <div class="stat">Iscritti<strong id="subs">12</strong></div>
+      <div class="stat">Energia<strong id="energy">100</strong> / 100<div class="energy-bar"><i id="energyFill" style="width:100%"></i></div></div>
+      <div class="stat">Video pubblicati<strong id="videoCount">0</strong></div>
+      <div class="stat">Visualizzazioni<strong id="views">0</strong></div>
+    </div>
+
+    <div class="video-card" id="videoReveal">
+      <div class="thumb" id="thumbEmoji" aria-hidden="true">🎬</div>
+      <h3 id="videoTitle">—</h3>
+      <p class="meta" id="videoMeta">—</p>
+      <button type="button" class="choice" id="btnAfterVideo">Torna alle avventure</button>
+    </div>
+
+    <div id="gameWrap">
+      <canvas id="cv" width="480" height="300"></canvas>
+      <p class="game-hud" id="gameHud"></p>
+      <div class="tower-text" id="towerText" hidden></div>
+      <div class="choices" id="towerChoices" hidden></div>
+      <button type="button" class="choice" id="btnQuit">Esci dall’avventura (nessun video)</button>
+    </div>
+
+    <div class="panel" id="hubPanel">
+      <h2>Scegli un’avventura</h2>
+      <div class="choices" id="advList"></div>
+    </div>
+
+    <div class="log" id="log" aria-live="polite"></div>
+  </div>
+  <nav><a href="entra.html">← Torna ai giochi</a></nav>
+
+  <script>
+(function () {
+  const MAX_E = 100;
+  const SAVE = "avventureVideoSave_v1";
+
+  let day = 1;
+  let subs = 12;
+  let energy = MAX_E;
+  let totalViews = 0;
+  let videoCount = 0;
+
+  let currentAdv = null;
+  let playStart = 0;
+  let deaths = 0;
+  let mode = null;
+  let wonLock = false;
+
+  const adventures = [
+    {
+      id: "maze",
+      name: "Labirinto della chiave",
+      emoji: "🗝️",
+      desc: "Trova la chiave e apri la porta.",
+      energy: 20,
+      mult: 1.2,
+      hint: "Frecce o WASD per muoverti",
+    },
+    {
+      id: "run",
+      name: "Fuga nella foresta",
+      emoji: "🌲",
+      desc: "Corri e salta fino al traguardo.",
+      energy: 22,
+      mult: 1.15,
+      hint: "Spazio / tocco per saltare",
+    },
+    {
+      id: "tower",
+      name: "Torre dei tre enigmi",
+      emoji: "🏰",
+      desc: "Risolvi 3 stanze per uscire.",
+      energy: 18,
+      mult: 1.25,
+      hint: "Clicca la risposta giusta",
+    },
+  ];
+
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const hubPanel = document.getElementById("hubPanel");
+  const gameWrap = document.getElementById("gameWrap");
+  const towerText = document.getElementById("towerText");
+  const towerChoices = document.getElementById("towerChoices");
+  const logEl = document.getElementById("log");
+
+  function loadSave() {
+    try {
+      const raw = localStorage.getItem(SAVE);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s.day) day = s.day;
+      if (s.subs) subs = s.subs;
+      if (s.energy != null) energy = s.energy;
+      if (s.totalViews) totalViews = s.totalViews;
+      if (s.videoCount) videoCount = s.videoCount;
+    } catch (_) {}
+  }
+
+  function saveGame() {
+    try {
+      localStorage.setItem(
+        SAVE,
+        JSON.stringify({ day, subs, energy, totalViews, videoCount })
+      );
+    } catch (_) {}
+  }
+
+  function el(id) {
+    return document.getElementById(id);
+  }
+
+  function paintStats() {
+    el("day").textContent = String(day);
+    el("subs").textContent = subs >= 1000 ? subs.toLocaleString("it-IT") : String(subs);
+    el("energy").textContent = String(Math.round(energy));
+    el("energyFill").style.width = Math.min(100, (energy / MAX_E) * 100) + "%";
+    el("views").textContent = totalViews >= 1000 ? totalViews.toLocaleString("it-IT") : String(Math.round(totalViews));
+    el("videoCount").textContent = String(videoCount);
+    saveGame();
+  }
+
+  function logLine(html, cls) {
+    const p = document.createElement("p");
+    if (cls) p.className = cls;
+    p.innerHTML = html;
+    logEl.insertBefore(p, logEl.firstChild);
+    while (logEl.children.length > 14) logEl.removeChild(logEl.lastChild);
+  }
+
+  function showHub() {
+    stopLoop();
+    mode = null;
+    currentAdv = null;
+    wonLock = false;
+    gameWrap.classList.remove("on");
+    hubPanel.hidden = false;
+    el("videoReveal").classList.remove("on");
+    cv.hidden = false;
+    towerText.hidden = true;
+    towerChoices.hidden = true;
+    renderAdvList();
+  }
+
+  function renderAdvList() {
+    const list = el("advList");
+    list.innerHTML = "";
+    const minE = Math.min.apply(
+      null,
+      adventures.map(function (a) {
+        return a.energy;
+      })
+    );
+    adventures.forEach(function (a) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "choice";
+      btn.disabled = energy < a.energy;
+      btn.innerHTML =
+        a.emoji +
+        " " +
+        a.name +
+        "<small>" +
+        a.desc +
+        " · −" +
+        a.energy +
+        " energia · " +
+        a.hint +
+        "</small>";
+      btn.addEventListener("click", function () {
+        startAdventure(a);
+      });
+      list.appendChild(btn);
+    });
+    if (energy < minE) {
+      const rest = document.createElement("button");
+      rest.type = "button";
+      rest.className = "choice";
+      rest.innerHTML =
+        "Riposa un giorno<small>+45 energia, nessuna avventura oggi</small>";
+      rest.addEventListener("click", function () {
+        energy = Math.min(MAX_E, energy + 45);
+        day += 1;
+        logLine("Riposo: energia recuperata.", "meh");
+        paintStats();
+        renderAdvList();
+      });
+      list.appendChild(rest);
+    }
+  }
+
+  function startAdventure(a) {
+    if (energy < a.energy) return;
+    energy -= a.energy;
+    currentAdv = a;
+    playStart = Date.now();
+    deaths = 0;
+    wonLock = false;
+    hubPanel.hidden = true;
+    gameWrap.classList.add("on");
+    el("videoReveal").classList.remove("on");
+    el("gameHud").textContent = a.hint;
+
+    if (a.id === "maze") {
+      mode = "maze";
+      initMaze();
+      cv.hidden = false;
+      towerText.hidden = true;
+      towerChoices.hidden = true;
+      startLoop();
+    } else if (a.id === "run") {
+      mode = "run";
+      initRun();
+      cv.hidden = false;
+      towerText.hidden = true;
+      towerChoices.hidden = true;
+      startLoop();
+    } else if (a.id === "tower") {
+      mode = "tower";
+      cv.hidden = true;
+      towerText.hidden = false;
+      towerChoices.hidden = false;
+      initTower();
+    }
+    paintStats();
+    logLine("Avventura iniziata: <strong>" + a.name + "</strong>", "meh");
+  }
+
+  let raf = 0;
+  function startLoop() {
+    stopLoop();
+    function frame() {
+      if (mode === "maze") tickMaze();
+      else if (mode === "run") tickRun();
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  function stopLoop() {
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+  }
+
+  /* —— Labirinto —— */
+  const CELL = 24;
+  let mazeMap, px, py, hasKey, doorOpen;
+
+  function initMaze() {
+    hasKey = false;
+    doorOpen = false;
+    px = 1;
+    py = 1;
+    mazeMap = [
+      "###############",
+      "#.....#.......#",
+      "#.###.#.#####.#",
+      "#.#...#...#...#",
+      "#.#.#####.#.#.#",
+      "#...#...#.#.#.#",
+      "###.#.#.#.#.#.#",
+      "#...#.#...#...#",
+      "#.###.#####.###",
+      "#.....K....D..#",
+      "#.#########.#.#",
+      "#...........#.#",
+      "#.###########.#",
+      "#.............#",
+      "###############",
+    ];
+    keysHeld = {};
+  }
+
+  function mazeCell(x, y) {
+    if (y < 0 || y >= mazeMap.length || x < 0 || x >= mazeMap[0].length) return "#";
+    return mazeMap[y][x];
+  }
+
+  function tryMoveMaze(dx, dy) {
+    const nx = px + dx;
+    const ny = py + dy;
+    const c = mazeCell(nx, ny);
+    if (c === "#") return;
+    if (c === "D" && !doorOpen) return;
+    px = nx;
+    py = ny;
+    if (c === "K") {
+      hasKey = true;
+      mazeMap[ny] = mazeMap[ny].slice(0, nx) + "." + mazeMap[ny].slice(nx + 1);
+    }
+
+  }
+
+  function tickMaze() {
+    if (hasKey && !doorOpen) {
+      doorOpen = true;
+      for (let y = 0; y < mazeMap.length; y++) {
+        mazeMap[y] = mazeMap[y].replace("D", "O");
+      }
+    }
+    const w = mazeMap[0].length * CELL;
+    const h = mazeMap.length * CELL;
+    ctx.fillStyle = "#1a1528";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    for (let y = 0; y < mazeMap.length; y++) {
+      for (let x = 0; x < mazeMap[y].length; x++) {
+        const ch = mazeMap[y][x];
+        const rx = x * CELL;
+        const ry = y * CELL;
+        if (ch === "#") {
+          ctx.fillStyle = "#3d3558";
+          ctx.fillRect(rx, ry, CELL, CELL);
+        } else if (ch === "O") {
+          ctx.fillStyle = "#51cf66";
+          ctx.fillRect(rx + 4, ry + 4, CELL - 8, CELL - 8);
+        } else {
+          ctx.fillStyle = "#2a243f";
+          ctx.fillRect(rx, ry, CELL, CELL);
+        }
+      }
+    }
+    ctx.fillStyle = "#ffd43b";
+    ctx.beginPath();
+    ctx.arc(px * CELL + CELL / 2, py * CELL + CELL / 2, CELL * 0.32, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "600 11px system-ui";
+    ctx.fillText(hasKey ? "Chiave ✓" : "Cerca chiave", 8, 18);
+    if (doorOpen) ctx.fillText("Vai alla porta verde!", 8, 34);
+    if (!wonLock && mazeCell(px, py) === "O") winAdventure();
+  }
+
+  /* —— Runner foresta —— */
+  let runX, runY, runVy, runOnGround, runDist, runObstacles, runWon;
+
+  function initRun() {
+    runX = 48;
+    runY = 240;
+    runVy = 0;
+    runOnGround = true;
+    runDist = 0;
+    runWon = false;
+    runObstacles = [];
+    runSpawn = 0;
+  }
+  let runSpawn = 0;
+  const RUN_GOAL = 3200;
+  const GROUND = 248;
+
+  function tickRun() {
+    if (runWon) return;
+    runDist += 4.2;
+    runSpawn--;
+    if (runSpawn <= 0) {
+      runObstacles.push({ x: cv.width + 20, w: 18 + Math.random() * 14, h: 28 + Math.random() * 18 });
+      runSpawn = 45 + Math.random() * 35;
+    }
+    runVy += 0.55;
+    runY += runVy;
+    if (runY >= GROUND) {
+      runY = GROUND;
+      runVy = 0;
+      runOnGround = true;
+    }
+    for (let i = runObstacles.length - 1; i >= 0; i--) {
+      const o = runObstacles[i];
+      o.x -= 5;
+      if (
+        runX + 20 > o.x &&
+        runX < o.x + o.w &&
+        runY + 8 > GROUND - o.h
+      ) {
+        deaths++;
+        runX = 48;
+        runY = GROUND;
+        runVy = 0;
+        runDist = Math.max(0, runDist - 120);
+      }
+      if (o.x + o.w < 0) runObstacles.splice(i, 1);
+    }
+    if (runDist >= RUN_GOAL) {
+      runWon = true;
+      winAdventure();
+      return;
+    }
+    ctx.fillStyle = "#87ceeb";
+    ctx.fillRect(0, 0, cv.width, 120);
+    ctx.fillStyle = "#2f9e44";
+    ctx.fillRect(0, GROUND, cv.width, cv.height - GROUND);
+    ctx.fillStyle = "#1e6b32";
+    for (let i = 0; i < 8; i++) {
+      ctx.fillRect((i * 90 - (runDist * 0.3) % 90), GROUND - 40, 50, 40);
+    }
+    ctx.fillStyle = "#ff6b6b";
+    runObstacles.forEach(function (o) {
+      ctx.fillRect(o.x, GROUND - o.h, o.w, o.h);
+    });
+    ctx.fillStyle = "#4dabf7";
+    ctx.fillRect(runX, runY - 36, 28, 36);
+    ctx.fillStyle = "#fff";
+    ctx.font = "600 12px system-ui";
+    const pct = Math.min(100, Math.round((runDist / RUN_GOAL) * 100));
+    ctx.fillText("Traguardo " + pct + "%", 8, 20);
+  }
+
+  function jumpRun() {
+    if (mode !== "run" || runWon) return;
+    if (runOnGround) {
+      runVy = -11;
+      runOnGround = false;
+    }
+  }
+
+  /* —— Torre enigmi —— */
+  let towerStep = 0;
+
+  const towerRooms = [
+    {
+      text: "Stanza 1: una porta chiusa. Cosa usi per aprirla?",
+      choices: [
+        { label: "Chiave arrugginita", ok: true },
+        { label: "Pietra pesante", ok: false },
+        { label: "Vento", ok: false },
+      ],
+    },
+    {
+      text: "Stanza 2: un ponte instabile. Come lo attraversi?",
+      choices: [
+        { label: "Corri a caso", ok: false },
+        { label: "Un passo alla volta", ok: true },
+        { label: "Salti nel vuoto", ok: false },
+      ],
+    },
+    {
+      text: "Stanza 3: il drago dorme. Come esci?",
+      choices: [
+        { label: "Urli forte", ok: false },
+        { label: "Cammini in punta di piedi", ok: true },
+        { label: "Gli dai da mangiare", ok: false },
+      ],
+    },
+  ];
+
+  function initTower() {
+    towerStep = 0;
+    showTowerRoom();
+  }
+
+  function showTowerRoom() {
+    const room = towerRooms[towerStep];
+    towerText.textContent = room.text;
+    towerChoices.innerHTML = "";
+    room.choices.forEach(function (c) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "choice";
+      btn.textContent = c.label;
+      btn.addEventListener("click", function () {
+        if (c.ok) {
+          towerStep++;
+          if (towerStep >= towerRooms.length) winAdventure();
+          else showTowerRoom();
+        } else {
+          deaths++;
+          towerText.textContent = "Sbagliato! Riprova questa stanza…";
+          setTimeout(showTowerRoom, 700);
+        }
+      });
+      towerChoices.appendChild(btn);
+    });
+  }
+
+  /* —— Vittoria → Video —— */
+  function winAdventure() {
+    if (!currentAdv || wonLock) return;
+    wonLock = true;
+    stopLoop();
+    mode = null;
+
+    const secs = Math.round((Date.now() - playStart) / 1000);
+    let quality = 55;
+    if (deaths === 0) quality += 22;
+    else quality += Math.max(0, 12 - deaths * 4);
+    if (secs < 45) quality += 12;
+    else if (secs < 90) quality += 6;
+    quality = Math.min(100, quality);
+
+    const t = currentAdv;
+    const base = 50 + Math.random() * 80;
+    const qFactor = 0.55 + quality / 100;
+    const subBoost = Math.sqrt(Math.max(1, subs)) * 2.8;
+    let views = base * qFactor * t.mult + subBoost * (0.9 + Math.random() * 0.6);
+    views = Math.round(views);
+    totalViews += views;
+    const gained = Math.max(
+      1,
+      Math.round(Math.sqrt(views) * 0.4 + (views > 180 ? views * 0.0025 : 0))
+    );
+    subs += gained;
+    videoCount += 1;
+    energy = Math.min(MAX_E, energy + 25);
+    day += 1;
+
+    const title = "AVVENTURA COMPLETA: " + t.name;
+    gameWrap.classList.remove("on");
+    hubPanel.hidden = true;
+    el("videoReveal").classList.add("on");
+    el("thumbEmoji").textContent = t.emoji;
+    el("videoTitle").textContent = title;
+    el("videoMeta").textContent =
+      views.toLocaleString("it-IT") +
+      " visualizzazioni · +" +
+      gained +
+      " iscritti · qualità " +
+      quality +
+      "% · " +
+      secs +
+      " s";
+
+    logLine(
+      "🎬 Video creato dall’avventura <strong>" +
+        t.name +
+        "</strong>: " +
+        views.toLocaleString("it-IT") +
+        " views",
+      "ok"
+    );
+    paintStats();
+    currentAdv = null;
+  }
+
+  let keysHeld = {};
+  window.addEventListener("keydown", function (e) {
+    keysHeld[e.code] = true;
+    if (mode === "run" && (e.code === "Space" || e.code === "ArrowUp")) {
+      e.preventDefault();
+      jumpRun();
+    }
+    if (mode === "maze") {
+      if (e.code === "ArrowUp" || e.code === "KeyW") tryMoveMaze(0, -1);
+      if (e.code === "ArrowDown" || e.code === "KeyS") tryMoveMaze(0, 1);
+      if (e.code === "ArrowLeft" || e.code === "KeyA") tryMoveMaze(-1, 0);
+      if (e.code === "ArrowRight" || e.code === "KeyD") tryMoveMaze(1, 0);
+    }
+  });
+  window.addEventListener("keyup", function (e) {
+    keysHeld[e.code] = false;
+  });
+
+  setInterval(function () {
+    if (mode !== "maze") return;
+    if (keysHeld.ArrowUp || keysHeld.KeyW) tryMoveMaze(0, -1);
+    if (keysHeld.ArrowDown || keysHeld.KeyS) tryMoveMaze(0, 1);
+    if (keysHeld.ArrowLeft || keysHeld.KeyA) tryMoveMaze(-1, 0);
+    if (keysHeld.ArrowRight || keysHeld.KeyD) tryMoveMaze(1, 0);
+  }, 120);
+
+  cv.addEventListener("pointerdown", function () {
+    jumpRun();
+  });
+
+  el("btnQuit").addEventListener("click", function () {
+    stopLoop();
+    logLine("Avventura abbandonata: nessun video.", "bad");
+    showHub();
+    paintStats();
+  });
+
+  el("btnAfterVideo").addEventListener("click", showHub);
+
+  loadSave();
+  paintStats();
+  showHub();
+})();
+  </script>
+</body>
+</html>

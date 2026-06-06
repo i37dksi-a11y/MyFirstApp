@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lista attività</title>
+  <style>
+    :root {
+      --bg: #203a5c;
+      --card: #598bc8;
+      --line: rgba(255,255,255,0.08);
+      --text: #e8edf4;
+      --muted: #8a9bb0;
+      --accent: #3db88a;
+      --accent-dim: #2d9570;
+      --danger: #e85d5d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, "Segoe UI", sans-serif;
+      background: radial-gradient(ellipse 100% 80% at 50% 0%, #1e3d4a 0%, var(--bg) 55%);
+      color: var(--text);
+      padding: 1.5rem 1rem 2rem;
+    }
+    main {
+      max-width: 420px;
+      margin: 0 auto;
+      background: var(--card);
+      border-radius: 18px;
+      padding: 1.5rem;
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.35);
+    }
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: 1.35rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    .sub {
+      margin: 0 0 1.25rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+    .row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      padding: 0.65rem 0.85rem;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,0.25);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(61, 184, 138, 0.2);
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 0.65rem 1rem;
+      transition: transform 0.08s, background 0.15s;
+    }
+    button:active { transform: scale(0.98); }
+    .btn-add {
+      background: var(--accent);
+      color: #0a1612;
+      white-space: nowrap;
+    }
+    .btn-add:hover { background: var(--accent-dim); }
+    .btn-del {
+      background: transparent;
+      color: var(--danger);
+      padding: 0.35rem 0.55rem;
+      font-size: 1.1rem;
+      line-height: 1;
+      opacity: 0.85;
+    }
+    .btn-del:hover { opacity: 1; background: rgba(232,93,93,0.12); }
+    .btn-clear {
+      width: 100%;
+      margin-top: 0.75rem;
+      background: rgba(255,255,255,0.06);
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .btn-clear:hover { color: var(--text); background: rgba(255,255,255,0.1); }
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.98rem;
+      animation: in 0.25s ease;
+    }
+    @keyframes in {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    li.done span.text {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+    li label {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      cursor: pointer;
+      min-width: 0;
+    }
+    li input[type="checkbox"] {
+      width: 1.1rem;
+      height: 1.1rem;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+    li span.text { word-break: break-word; }
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 1.5rem 0.5rem;
+    }
+    footer {
+      text-align: center;
+      margin-top: 1.25rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Lista attività</h1>
+    <p class="sub">Scrivi e premi <strong>Aggiungi</strong>. Le voci restano salvate in questo browser (anche se chiudi la pagina).</p>
+
+    <form class="row" id="form" autocomplete="off">
+      <input id="task" type="text" placeholder="Es. Studiare HTML…" maxlength="200" />
+      <button type="submit" class="btn-add">Aggiungi</button>
+    </form>
+
+    <ul id="list" aria-label="Elenco attività"></ul>
+    <p class="empty" id="empty">Nessuna attività. Aggiungine una sopra.</p>
+
+    <button type="button" class="btn-clear" id="clearDone">Rimuovi completate</button>
+  </main>
+  <footer>File: lista-attivita.html · dati solo sul tuo computer</footer>
+
+  <script>
+    const KEY = "myfirstapp-tasks-v1";
+    const listEl = document.getElementById("list");
+    const emptyEl = document.getElementById("empty");
+    const form = document.getElementById("form");
+    const input = document.getElementById("task");
+    const clearDone = document.getElementById("clearDone");
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(KEY);
+        if (!raw) return [];
+        const a = JSON.parse(raw);
+        return Array.isArray(a) ? a : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function save(items) {
+      localStorage.setItem(KEY, JSON.stringify(items));
+    }
+
+    let items = load();
+
+    function render() {
+      listEl.innerHTML = "";
+      emptyEl.style.display = items.length ? "none" : "block";
+      items.forEach((it, i) => {
+        const li = document.createElement("li");
+        if (it.done) li.classList.add("done");
+        const label = document.createElement("label");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = it.done;
+        cb.addEventListener("change", () => {
+          items[i].done = cb.checked;
+          li.classList.toggle("done", cb.checked);
+          save(items);
+        });
+        const span = document.createElement("span");
+        span.className = "text";
+        span.textContent = it.text;
+        label.append(cb, span);
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "btn-del";
+        del.setAttribute("aria-label", "Elimina");
+        del.textContent = "×";
+        del.addEventListener("click", () => {
+          items.splice(i, 1);
+          save(items);
+          render();
+        });
+        li.append(label, del);
+        listEl.appendChild(li);
+      });
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      items.push({ text, done: false });
+      input.value = "";
+      save(items);
+      render();
+      input.focus();
+    });
+
+    clearDone.addEventListener("click", () => {
+      items = items.filter((it) => !it.done);
+      save(items);
+      render();
+    });
+
+    render();
+    input.focus();
+  </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Uccello sul trampolino (animazione)</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #87ceeb 0%, #b8e0f0 45%, #90c695 45%, #5a9f6a 100%);
+      font-family: system-ui, sans-serif;
+      color: #1a3d2e;
+    }
+    h1 { font-size: 1.1rem; margin: 0 0 0.5rem; text-align: center; }
+    p {
+      max-width: 420px;
+      font-size: 0.85rem;
+      line-height: 1.45;
+      margin: 0 0 1rem;
+      padding: 0 1rem;
+      text-align: center;
+      opacity: 0.9;
+    }
+    canvas {
+      display: block;
+      width: min(100vw - 24px, 480px);
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+      background: linear-gradient(180deg, #a8d8f0 0%, #c8e8f5 55%, #7ec850 55%, #4a8f3a 100%);
+    }
+  </style>
+</head>
+<body>
+  <h1>Uccello sul trampolino</h1>
+  <p>
+    Animazione stilizzata (non è un video vero di un uccello). Per un filmato: usa <strong>Registrazione schermo</strong>
+    mentre questa pagina è aperta. Per qualcosa che sembra ripreso dal vero servono strumenti di <strong>video IA</strong> (vedi sotto).
+  </p>
+  <canvas id="c" width="480" height="320" aria-label="Animazione uccello e trampolino"></canvas>
+
+  <script>
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width;
+    const H = canvas.height;
+
+    const trampY = H - 70;
+    const trampW = 200;
+    const trampX = W / 2 - trampW / 2;
+
+    let t = 0;
+    const g = 0.42;
+    let bird = { x: W / 2, y: trampY - 50, vy: -11, r: 0 };
+
+    function drawTrampoline() {
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(trampX, trampY + 25);
+      ctx.lineTo(trampX + trampW, trampY + 25);
+      ctx.stroke();
+      ctx.strokeStyle = "#555";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 12; i++) {
+        const px = trampX + 14 + i * 15;
+        ctx.beginPath();
+        ctx.moveTo(px, trampY + 25);
+        ctx.lineTo(px, trampY - 8 + Math.sin(t * 0.15 + i) * 3);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#8b4513";
+      ctx.fillRect(trampX + 20, trampY + 22, 12, 28);
+      ctx.fillRect(trampX + trampW - 32, trampY + 22, 12, 28);
+    }
+
+    function drawBird() {
+      ctx.save();
+      ctx.translate(bird.x, bird.y);
+      ctx.rotate(bird.r);
+      ctx.fillStyle = "#2d2d2d";
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 22, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#f5a623";
+      ctx.beginPath();
+      ctx.moveTo(18, 2);
+      ctx.lineTo(32, 6);
+      ctx.lineTo(18, 10);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(8, -4, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#111";
+      ctx.beginPath();
+      ctx.arc(10, -4, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#4a3728";
+      ctx.beginPath();
+      ctx.ellipse(-18, 8, 10, 6, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function tick() {
+      t += 1;
+      bird.vy += g;
+      bird.y += bird.vy;
+      bird.r = Math.sin(t * 0.12) * 0.25 + bird.vy * 0.02;
+
+      const floor = trampY - 18;
+      if (bird.y >= floor && bird.vy > 0) {
+        bird.y = floor;
+        bird.vy = -Math.abs(bird.vy) * 0.88 - 2;
+        if (bird.vy > -7) bird.vy = -12 - Math.random() * 2;
+        bird.x = W / 2 + (Math.random() - 0.5) * 35;
+      }
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.beginPath();
+      ctx.arc(W - 60, 50, 28, 0, Math.PI * 2);
+      ctx.arc(W - 35, 48, 36, 0, Math.PI * 2);
+      ctx.fill();
+
+      drawTrampoline();
+      drawBird();
+
+      requestAnimationFrame(tick);
+    }
+
+    tick();
+  </script>
+</body>
+</html>

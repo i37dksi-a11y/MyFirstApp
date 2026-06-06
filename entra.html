@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Entra — MyFirstApp</title>
+  <meta http-equiv="refresh" content="0; url=lego-costruisci.html" />
+  <script>location.replace("lego-costruisci.html");</script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      font-family: system-ui, sans-serif;
+      background: radial-gradient(ellipse 100% 80% at 50% 0%, #2b4a6e 0%, #121820 50%);
+      color: #e8edf4;
+    }
+    h1 { margin: 0 0 0.35rem; font-size: 1.65rem; }
+    p { margin: 0 0 1.35rem; color: #9aacbf; text-align: center; max-width: 380px; line-height: 1.5; font-size: 0.95rem; }
+    .links {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      width: 100%;
+      max-width: 340px;
+    }
+    a {
+      display: block;
+      text-align: center;
+      padding: 0.88rem 1rem;
+      border-radius: 14px;
+      font-weight: 650;
+      text-decoration: none;
+      color: #0d1f16;
+      background: linear-gradient(180deg, #5ce1a0, #2f9d6a);
+      box-shadow: 0 4px 0 #1e6b47;
+    }
+    a:hover { filter: brightness(1.06); }
+    a:active { transform: translateY(2px); box-shadow: 0 2px 0 #1e6b47; }
+    a.sec {
+      background: linear-gradient(180deg, #74c0fc, #339af0);
+      color: #0c1a2e;
+      box-shadow: 0 4px 0 #1864ab;
+    }
+    a.sec:active { box-shadow: 0 2px 0 #1864ab; }
+    a.dim {
+      background: rgba(255,255,255,0.1);
+      color: #c5d4e0;
+      box-shadow: none;
+      font-size: 0.88rem;
+      font-weight: 500;
+    }
+    a.dim:active { transform: none; }
+  </style>
+</head>
+<body>
+  <h1>Entra</h1>
+  <p>Scegli una pagina. Se vedi solo codice, apri questo file con il browser (doppio clic su <strong>entra.html</strong>).</p>
+  <nav class="links" aria-label="Pagine">
+    <a href="app.html">📱 MyFirstApp — l'app (consigliato)</a>
+    <a href="index.html">Giochi e app principale</a>
+    <a href="cinque-giochi.html" class="sec">Cinque giochi (mini)</a>
+    <a href="tre-giochi.html" class="sec">Tre giochi (1 giocatore)</a>
+    <a href="tre-giochi-2p.html" class="sec">Tre giochi · 2 giocatori</a>
+    <a href="cinque-giocatori.html" class="sec">Cinque in corsa (5 giocatori)</a>
+    <a href="palla-ultimo.html" class="sec">La palla per ultimo (2–4 giocatori)</a>
+    <a href="fussball.html" class="sec">Mini calcio / Fußball</a>
+    <a href="basketball.html" class="sec">Mini basket / Basketball</a>
+    <a href="super-tux-party.html" class="sec">Super Tux Party (platform)</a>
+    <a href="super-mario-party.html" class="sec">Super Mario Party (platform)</a>
+    <a href="tetris.html" class="sec">Tetris</a>
+    <a href="scacchi.html" class="sec">Scacchi</a>
+    <a href="coco.html" class="sec">Coco (gioco del cocco)</a>
+    <a href="gioco-tranquillo.html" class="sec">Laghetto tranquillo (rilassante)</a>
+    <a href="prendi-la-piantina.html" class="sec">Prendi la piantina (giardino)</a>
+    <a href="amungos-inposter.html" class="sec">Amungos Imposter (Among Us mini)</a>
+    <a href="gioco-formiche.html" class="sec">Formiche — crescita e guerra</a>
+    <a href="gioco-molto-divertente.html" class="sec">Bufale sul nastro (veloce e pazzo)</a>
+    <a href="gioco-divertente-tranquillo.html" class="sec">Parco dei puff (divertente + tranquillo)</a>
+    <a href="lista-attivita.html" class="sec">Lista attività</a>
+    <a href="piccoli-lavori.html" class="dim">Piccoli lavori</a>
+    <a href="uccello-trampolino.html" class="dim">Uccello sul trampolino</a>
+    <a href="ninja-google.html" class="sec">Ninja runner (stile gioco Google / Chrome)</a>
+    <a href="ninjago.html" class="sec">Ninjago Spinjitzu Arena (online)</a>
+    <a href="fabbrica.html" class="sec">La mia Fabbrica 🏭</a>
+    <a href="lego-costruisci.html" class="sec">LEGO — Costruisci! (barca, casa, invenzioni)</a>
+    <a href="gioco-che-fa-i-video.html" class="sec">Avventure → video (gioca e pubblica)</a>
+  </nav>
+</body>
+</html>

@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MyFirstApp
+GenericName=Giochi
+Comment=Tutti i giochi in un'unica app — per tutti gli utenti
+Exec=/opt/MyFirstApp/launch-myfirstapp.sh
+Icon=/opt/MyFirstApp/icon.svg
+Path=/opt/MyFirstApp
+Terminal=false
+StartupNotify=true
+Categories=Game;KidsGame;
+Keywords=giochi;games;ninjago;ninja;
+StartupWMClass=MyFirstApp

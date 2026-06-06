@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Parco dei puff — divertente e tranquillo</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, "Segoe UI", sans-serif;
+      background: #141820;
+      color: #dce4ee;
+      padding: 0.6rem 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      margin: 0 0 0.3rem;
+      color: #f1f5f9;
+    }
+    p.intro {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      max-width: 500px;
+      margin: 0 0 0.55rem;
+      line-height: 1.5;
+    }
+    #wrap {
+      width: 100%;
+      max-width: 760px;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow:
+        0 22px 56px rgba(0, 0, 0, 0.5),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      touch-action: none;
+      cursor: pointer;
+    }
+    #barWrap {
+      width: 100%;
+      max-width: 760px;
+      margin-bottom: 0.35rem;
+    }
+    #barOuter {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+    #barInner {
+      height: 100%;
+      width: 40%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #6ee7b7, #a78bfa);
+      transition: width 0.35s ease-out;
+    }
+    #labelSerenity {
+      font-size: 0.72rem;
+      color: #86efac;
+      margin-top: 0.25rem;
+      font-weight: 700;
+    }
+    nav {
+      margin-top: 0.9rem;
+      font-size: 0.82rem;
+    }
+    nav a {
+      color: #74c0fc;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <h1>Parco dei puff</h1>
+  <p class="intro">
+    Gioco <strong>molto tranquillo</strong> e un po’ <strong>scherzoso</strong>: tocchi l’erba e i puff rotolano verso di te.
+    Più tocchi con calma (senza spam), più sale la <strong>serenità</strong>. Arriva al massimo per un arcobaleno di pace.
+    Nessun game over.
+  </p>
+  <div id="barWrap">
+    <div id="barOuter"><div id="barInner"></div></div>
+    <div id="labelSerenity">Serenità · tieni un ritmo dolce</div>
+  </div>
+  <div id="wrap">
+    <canvas id="cv" width="760" height="420" aria-label="Parco dei puff"></canvas>
+  </div>
+  <nav><a href="entra.html">← Entra</a></nav>
+
+  <script>
+    const CV_W = 760;
+    const CV_H = 420;
+    const GROUND_Y = 310;
+
+    let tick = 0;
+    let blobs = [];
+    let ripples = [];
+    let particles = [];
+    let serenity = 38;
+    let lastClickMs = 0;
+    let rainbowT = 0;
+    let audioCtx = null;
+
+    const NOTES = [392, 440, 493.88, 523.25, 587.33, 659.25];
+
+    function ensureAudio() {
+      if (audioCtx) return;
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (_) {}
+    }
+
+    function softTone(freq, dur = 0.14, vol = 0.07) {
+      ensureAudio();
+      if (!audioCtx) return;
+      try {
+        audioCtx.resume();
+      } catch (_) {}
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "sine";
+      o.frequency.value = freq;
+      const t0 = audioCtx.currentTime;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(vol, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start(t0);
+      o.stop(t0 + dur + 0.02);
+    }
+
+    function burstChords() {
+      const base = NOTES[2 + Math.floor(Math.random() * 4)];
+      softTone(base, 0.22, 0.065);
+      window.setTimeout(() => softTone(base * 1.25, 0.18, 0.045), 70);
+    }
+
+    function initBlobs() {
+      blobs = [];
+      const hues = [320, 200, 145, 265, 185, 35, 310];
+      for (let i = 0; i < 9; i++) {
+        blobs.push({
+          x: 80 + Math.random() * (CV_W - 160),
+          y: GROUND_Y - 25 - Math.random() * 55,
+          vx: (Math.random() - 0.5) * 1.1,
+          vy: -Math.random() * 0.5,
+          r: 22 + Math.random() * 14,
+          hue: hues[i % hues.length],
+          squash: 1,
+          blink: 0,
+          nextBlink: 2000 + Math.random() * 4000,
+        });
+      }
+    }
+
+    function addRipple(x, y) {
+      ripples.push({ x, y, t: 0, max: 200 });
+      if (ripples.length > 20) ripples.shift();
+    }
+
+    function addParticles(x, y, n, kind) {
+      for (let i = 0; i < n; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const sp = 0.8 + Math.random() * 3.2;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(ang) * sp,
+          vy: Math.sin(ang) * sp - 1.2,
+          life: 520 + Math.random() * 380,
+          kind,
+          rot: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    function updateHud() {
+      const bar = document.getElementById("barInner");
+      if (bar) bar.style.width = Math.min(100, serenity) + "%";
+      const lb = document.getElementById("labelSerenity");
+      if (lb) {
+        if (rainbowT > 0) lb.textContent = "Arcobaleno di pace · respira";
+        else if (serenity >= 85) lb.textContent = "Serenità · quasi lì…";
+        else if (serenity >= 55) lb.textContent = "Serenità · ottimo ritmo";
+        else lb.textContent = "Serenità · tocchi calmi aiutano";
+      }
+    }
+
+    function handleTap(wx, wy) {
+      if (wy > GROUND_Y + 80) return;
+      ensureAudio();
+      const now = performance.now();
+      const gap = now - lastClickMs;
+      lastClickMs = now;
+
+      if (gap > 420 && gap < 12000) serenity += 9;
+      else if (gap < 140) serenity -= 8;
+      else serenity += 4;
+      serenity = Math.max(0, Math.min(100, serenity));
+
+      addRipple(wx, wy);
+      const NOTES_PLAY = NOTES;
+      softTone(NOTES_PLAY[Math.floor(Math.random() * NOTES_PLAY.length)], 0.16, 0.062);
+
+      let near = 0;
+      const pull = 240;
+      for (const b of blobs) {
+        const dx = wx - b.x;
+        const dy = wy - b.y;
+        const d = Math.sqrt(dx * dx + dy * dy) || 1;
+        if (d < pull) {
+          const f = (1 - d / pull) * 4.2;
+          b.vx += (dx / d) * f;
+          b.vy += (dy / d) * f * 0.85;
+          b.squash = 1.18;
+          if (d < 88) near++;
+        }
+      }
+      if (near >= 3) {
+        addParticles(wx, wy, 18, "heart");
+        burstChords();
+        serenity += 5;
+        serenity = Math.min(100, serenity);
+      } else addParticles(wx, wy, 10, "spark");
+
+      if (serenity >= 100) {
+        serenity = 100;
+        rainbowT = 4200;
+        serenity = 32;
+        burstChords();
+        addParticles(CV_W / 2, GROUND_Y - 40, 40, "star");
+      }
+
+      updateHud();
+    }
+
+    function physics(dt) {
+      const k = Math.min(2, dt / 16);
+      tick += dt;
+
+      if (rainbowT > 0) rainbowT -= dt;
+
+      for (const b of blobs) {
+        b.vy += 0.11 * k;
+        b.x += b.vx * k;
+        b.y += b.vy * k;
+        b.vx *= Math.pow(0.985, k);
+        b.vy *= Math.pow(0.99, k);
+        b.squash += (1 - b.squash) * 0.12 * k;
+        b.nextBlink -= dt;
+        if (b.nextBlink <= 0) {
+          b.blink = 180;
+          b.nextBlink = 2500 + Math.random() * 5000;
+        }
+        if (b.blink > 0) b.blink -= dt;
+
+        if (b.y + b.r > GROUND_Y) {
+          b.y = GROUND_Y - b.r;
+          b.vy *= -0.32;
+          b.vx *= 0.88;
+          b.squash = 1.12;
+        }
+        if (b.x < b.r) {
+          b.x = b.r;
+          b.vx *= -0.6;
+        }
+        if (b.x > CV_W - b.r) {
+          b.x = CV_W - b.r;
+          b.vx *= -0.6;
+        }
+        if (b.y < b.r + 20) {
+          b.y = b.r + 20;
+          b.vy *= -0.4;
+        }
+
+        b.vx += Math.sin(tick * 0.001 + b.hue) * 0.018 * k;
+      }
+
+      ripples = ripples.filter((r) => {
+        r.t += dt;
+        return r.t < r.max;
+      });
+
+      particles = particles.filter((p) => {
+        p.x += p.vx * k;
+        p.y += p.vy * k;
+        p.vy += 0.06 * k;
+        p.life -= dt;
+        p.rot += 0.04 * k;
+        return p.life > 0;
+      });
+
+      serenity = Math.min(100, serenity);
+      updateHud();
+    }
+
+    function drawBg(ctx) {
+      const g = ctx.createLinearGradient(0, 0, 0, CV_H);
+      g.addColorStop(0, "#87ceeb");
+      g.addColorStop(0.45, "#b8e6f0");
+      g.addColorStop(0.72, "#c8f5c8");
+      g.addColorStop(1, "#86c58a");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, CV_W, CV_H);
+
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      for (let i = 0; i < 8; i++) {
+        ctx.beginPath();
+        ctx.ellipse(
+          80 + i * 110 + Math.sin(tick * 0.0008 + i) * 20,
+          48 + (i % 3) * 8,
+          55 + i * 5,
+          18,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+      }
+
+      ctx.fillStyle = "#5dab63";
+      ctx.beginPath();
+      ctx.moveTo(0, GROUND_Y + 25);
+      for (let x = 0; x <= CV_W; x += 18) {
+        ctx.lineTo(x, GROUND_Y + 12 + Math.sin(x * 0.04 + tick * 0.003) * 6);
+      }
+      ctx.lineTo(CV_W, CV_H);
+      ctx.lineTo(0, CV_H);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(40,120,50,0.25)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, GROUND_Y);
+      ctx.lineTo(CV_W, GROUND_Y);
+      ctx.stroke();
+    }
+
+    function drawRainbow(ctx) {
+      if (rainbowT <= 0) return;
+      const u = rainbowT / 4200;
+      const a = Math.min(1, u * 2) * (rainbowT < 800 ? rainbowT / 800 : 1);
+      ctx.save();
+      ctx.globalAlpha = a * 0.55;
+      const cx = CV_W * 0.5;
+      const cy = GROUND_Y - 20;
+      for (let i = 0; i < 7; i++) {
+        ctx.strokeStyle = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899"][i];
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 120 + i * 12, Math.PI, 0, false);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawRipples(ctx) {
+      for (const r of ripples) {
+        const p = r.t / r.max;
+        const rad = 10 + p * 95;
+        ctx.strokeStyle = `rgba(255,255,255,${(1 - p) * 0.45})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    function drawBlob(ctx, b) {
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.scale(1, b.squash);
+      const rg = ctx.createRadialGradient(-6, -6, 2, 0, 0, b.r);
+      rg.addColorStop(0, `hsla(${b.hue}, 95%, 88%, 1)`);
+      rg.addColorStop(0.55, `hsla(${b.hue}, 75%, 72%, 1)`);
+      rg.addColorStop(1, `hsla(${b.hue}, 55%, 58%, 1)`);
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.arc(0, 0, b.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.12)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const eyeY = -b.r * 0.18;
+      const ey = b.blink > 0 ? 0.5 : 1;
+      ctx.fillStyle = "#1e293b";
+      if (b.blink > 0) {
+        ctx.fillRect(-b.r * 0.38 - 6, eyeY - 2, 12, 3 * ey);
+        ctx.fillRect(b.r * 0.22 - 6, eyeY - 2, 12, 3 * ey);
+      } else {
+        ctx.beginPath();
+        ctx.arc(-b.r * 0.32, eyeY, 5, 0, Math.PI * 2);
+        ctx.arc(b.r * 0.28, eyeY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(-b.r * 0.3, eyeY - 1.5, 1.8, 0, Math.PI * 2);
+        ctx.arc(b.r * 0.3, eyeY - 1.5, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = "rgba(255,150,160,0.45)";
+      ctx.beginPath();
+      ctx.ellipse(-b.r * 0.55, b.r * 0.15, 6, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(b.r * 0.55, b.r * 0.15, 6, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(0,0,0,0.2)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, b.r * 0.35, b.r * 0.35, 0.15 * Math.PI, 0.85 * Math.PI);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawParticles(ctx) {
+      for (const p of particles) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        const al = Math.min(1, p.life / 300);
+        if (p.kind === "heart") {
+          ctx.fillStyle = `rgba(251, 113, 133, ${al * 0.9})`;
+          ctx.font = "bold 16px system-ui";
+          ctx.fillText("♥", -8, 6);
+        } else if (p.kind === "star") {
+          ctx.fillStyle = `rgba(250, 204, 21, ${al * 0.95})`;
+          ctx.font = "bold 15px system-ui";
+          ctx.fillText("✦", -7, 6);
+        } else {
+          ctx.fillStyle = `rgba(255,255,255,${al * 0.85})`;
+          ctx.beginPath();
+          ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    let lastT = performance.now();
+    function loop(now) {
+      const dt = Math.min(32, now - lastT);
+      lastT = now;
+      physics(dt);
+      const canvas = document.getElementById("cv");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, CV_W, CV_H);
+      drawBg(ctx);
+      drawRainbow(ctx);
+      drawRipples(ctx);
+      for (const b of blobs) drawBlob(ctx, b);
+      drawParticles(ctx);
+      requestAnimationFrame(loop);
+    }
+
+    const canvas = document.getElementById("cv");
+    function posFromEvent(e) {
+      const r = canvas.getBoundingClientRect();
+      const sx = canvas.width / r.width;
+      const sy = canvas.height / r.height;
+      const cx = (e.clientX ?? e.touches?.[0]?.clientX) - r.left;
+      const cy = (e.clientY ?? e.touches?.[0]?.clientY) - r.top;
+      return { x: cx * sx, y: cy * sy };
+    }
+    canvas.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      const { x, y } = posFromEvent(e);
+      handleTap(x, y);
+    });
+
+    initBlobs();
+    updateHud();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

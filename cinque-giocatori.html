@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cinque in corsa</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a222d;
+      --text: #e8ecf1;
+      --muted: #8b97a8;
+      --robot: #da77f2;
+      --human: #4dabf7;
+      --win: #69db7c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      background: radial-gradient(ellipse 100% 60% at 50% 0%, #2b3d5c 0%, var(--bg) 55%);
+      color: var(--text);
+      padding: 1rem 1rem 2rem;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 0.35rem; }
+    .sub { color: var(--muted); font-size: 0.86rem; margin: 0 0 1rem; line-height: 1.45; }
+    .setup-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.45rem 0.65rem;
+      background: var(--card);
+      border-radius: 10px;
+      margin-bottom: 0.4rem;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .setup-row label { font-weight: 600; font-size: 0.9rem; }
+    .setup-row select {
+      padding: 0.35rem 0.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: #252b36;
+      color: var(--text);
+      font-size: 0.88rem;
+    }
+    .btn {
+      padding: 0.65rem 1.2rem;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 1rem;
+      background: linear-gradient(180deg, #51cf66, #2f9e44);
+      color: #0d1f12;
+      box-shadow: 0 4px 0 #1e6b32;
+      width: 100%;
+      margin-top: 0.75rem;
+    }
+    .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1e6b32; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-roll {
+      background: linear-gradient(180deg, #ffd43b, #fab005);
+      color: #3d2910;
+      box-shadow: 0 4px 0 #c9a227;
+      font-size: 1.35rem;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+    #gamePanel { display: none; }
+    #gamePanel.on { display: block; }
+    #turnMsg {
+      text-align: center;
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin: 0.75rem 0;
+      min-height: 2.6em;
+      line-height: 1.3;
+    }
+    #turnMsg .robot { color: var(--robot); }
+    #turnMsg .human { color: var(--human); }
+    .lane {
+      margin-bottom: 0.55rem;
+    }
+    .lane-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+      opacity: 0.9;
+    }
+    .lane-head span.robot { color: var(--robot); }
+    .lane-head span.human { color: var(--human); }
+    .track {
+      height: 22px;
+      background: rgba(0,0,0,0.35);
+      border-radius: 11px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .track-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 11px;
+      background: linear-gradient(90deg, #339af0, #4dabf7);
+      transition: width 0.35s ease;
+    }
+    .track-fill.r { background: linear-gradient(90deg, #ae3ec9, #da77f2); }
+    .lane.lead .track-fill,
+    .lane.lead .track-fill.r {
+      box-shadow: 0 0 12px rgba(255, 212, 59, 0.45);
+    }
+    .marker {
+      position: absolute;
+      top: 50%;
+      left: 0%;
+      transform: translate(-50%, -50%);
+      font-size: 1.15rem;
+      transition: left 0.35s ease;
+      z-index: 2;
+    }
+    .track .site {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 0.72rem;
+      opacity: 0.95;
+      pointer-events: none;
+      z-index: 1;
+      white-space: nowrap;
+      text-shadow: 0 0 6px rgba(0,0,0,0.6);
+    }
+    #dice {
+      text-align: center;
+      font-size: 3rem;
+      min-height: 1.2em;
+      line-height: 1;
+      margin: 0.5rem 0;
+    }
+    #lastRoll {
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--muted);
+      font-style: italic;
+      min-height: 1.4em;
+    }
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 1rem;
+    }
+    #overlay.on { display: flex; }
+    #overlay .card {
+      background: var(--card);
+      padding: 1.5rem;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 320px;
+      border: 2px solid var(--win);
+    }
+    #overlay h2 { margin: 0 0 0.5rem; color: var(--win); }
+    nav { margin-top: 1.25rem; font-size: 0.82rem; color: var(--muted); }
+    nav a { color: #4dabf7; }
+  </style>
+</head>
+<body>
+  <h1>Cinque in corsa</h1>
+  <p class="sub">
+    Fino a <strong>cinque</strong> persone sullo stesso schermo. Per ogni posto scegli <strong>Umano</strong> (gioca tu al tuo turno) o <strong>Robot</strong> (tira il dado da solo).
+    <strong>Umani 👤:</strong> al <strong>cantiere (casella 20)</strong> prendi la <strong>pala</strong> 🪏 (compare accanto al nome). <strong>Vinci arrivando a 40</strong> — il gioco aggiorna sempre la pala quando passi dal cantiere. Pulsanti sotto solo se vuoi prenderla subito o farla cadere (prova).<br />
+    <strong>Robot 🤖:</strong> non usano la pala: per loro basta arrivare per primi a <strong>40</strong>.
+  </p>
+
+  <div id="setupPanel">
+    <p style="font-size:0.85rem;color:var(--muted);margin:0 0 0.5rem;">Chi è umano e chi è robot?</p>
+    <div id="setupRows"></div>
+    <button type="button" class="btn" id="btnStart">Inizia partita</button>
+  </div>
+
+  <div id="gamePanel">
+    <p id="turnMsg"></p>
+    <div id="lanes"></div>
+    <div id="dice" aria-hidden="true">🎲</div>
+    <p id="lastRoll"></p>
+    <button type="button" class="btn btn-roll" id="btnRoll" hidden>Lancia il dado!</button>
+    <button type="button" class="btn" id="btnPala" hidden style="margin-top:0.65rem;background:linear-gradient(180deg,#495057,#343a40);box-shadow:0 4px 0 #212529;font-size:0.92rem;">Prendi la pala al cantiere 🪏</button>
+    <button type="button" class="btn" id="btnLasciaPala" hidden style="margin-top:0.45rem;background:linear-gradient(180deg,#868e96,#495057);box-shadow:0 4px 0 #343a40;font-size:0.85rem;">Lascia cadere la pala</button>
+  </div>
+
+  <div id="overlay">
+    <div class="card">
+      <h2 id="winTitle">Vittoria!</h2>
+      <p id="winMsg"></p>
+      <button type="button" class="btn" id="btnAgain" style="margin-top:1rem;">Gioca ancora</button>
+    </div>
+  </div>
+
+  <nav><a href="entra.html">← Entra</a></nav>
+
+  <script>
+    const GOAL = 40;
+    const PALA_CELL = 20; /* cantiere: attraversando questa casella prendi la pala */
+    const NAMES = ["Blu", "Rosso", "Verde", "Giallo", "Viola"];
+    const COLORS = ["#339af0", "#e03131", "#2f9e44", "#f08c00", "#be4bdb"];
+
+    let players = [];
+    let turn = 0;
+    let running = false;
+
+    /** Umano passato dal cantiere (≥ casella 20) → mostra la pala. Chiamata spesso così non si “perde” mai lo stato. */
+    function aggiornaPalaUmano(p) {
+      if (!p.isRobot && p.pos >= PALA_CELL) {
+        p.hasPala = true;
+        return true;
+      }
+      return false;
+    }
+
+    function buildSetup() {
+      const el = document.getElementById("setupRows");
+      el.innerHTML = "";
+      for (let i = 0; i < 5; i++) {
+        const row = document.createElement("div");
+        row.className = "setup-row";
+        row.innerHTML =
+          '<label>Giocatore ' +
+          (i + 1) +
+          " · " +
+          NAMES[i] +
+          '</label><select data-i="' +
+          i +
+          '"><option value="human">Umano</option><option value="robot">Robot</option></select>';
+        el.appendChild(row);
+      }
+    }
+
+    function startGame() {
+      players = [];
+      for (let i = 0; i < 5; i++) {
+        const sel = document.querySelector('select[data-i="' + i + '"]');
+        players.push({
+          name: NAMES[i],
+          color: COLORS[i],
+          pos: 0,
+          isRobot: sel.value === "robot",
+          hasPala: false,
+        });
+      }
+      /* anche tutti robot: partita simulata, nessun click */
+      turn = 0;
+      running = true;
+      document.getElementById("setupPanel").style.display = "none";
+      document.getElementById("gamePanel").classList.add("on");
+      renderLanes();
+      nextTurn();
+    }
+
+    function renderLanes() {
+      const el = document.getElementById("lanes");
+      el.innerHTML = "";
+      const maxPos = Math.max(GOAL, ...players.map((p) => p.pos), 1);
+      const lead = Math.max(...players.map((p) => p.pos));
+      players.forEach((p, i) => {
+        const lane = document.createElement("div");
+        lane.className = "lane" + (p.pos === lead && p.pos > 0 ? " lead" : "");
+        const pct = Math.min(100, (p.pos / GOAL) * 100);
+        lane.innerHTML =
+          '<div class="lane-head"><span class="' +
+          (p.isRobot ? "robot" : "human") +
+          '">' +
+          p.name +
+          (p.isRobot ? " · 🤖" : " · 👤") +
+          (!p.isRobot && p.hasPala ? " 🪏" : "") +
+          '</span><span>' +
+          p.pos +
+          " / " +
+          GOAL +
+          "</span></div>" +
+          '<div class="track"><div class="track-fill' +
+          (p.isRobot ? " r" : "") +
+          '" style="width:' +
+          pct +
+          '%"></div><span class="site" title="Cantiere (cas. ' +
+          PALA_CELL +
+          ') — solo gli umani prendono la pala qui">🏗️🪏</span><span class="marker" style="left:' +
+          pct +
+          '%">' +
+          ["🔵", "🔴", "🟢", "🟡", "🟣"][i] +
+          "</span></div>";
+        el.appendChild(lane);
+      });
+    }
+
+    function sayTurn() {
+      const p = players[turn];
+      if (!p.isRobot) aggiornaPalaUmano(p);
+      const el = document.getElementById("turnMsg");
+      const btnPala = document.getElementById("btnPala");
+      const btnLascia = document.getElementById("btnLasciaPala");
+      if (p.isRobot) {
+        btnPala.hidden = true;
+        btnLascia.hidden = true;
+        el.innerHTML =
+          'Turno di <span class="robot">' +
+          p.name +
+          " (robot)</span><br/><small>Sta per tirare…</small>";
+        document.getElementById("btnRoll").hidden = true;
+      } else {
+        const need = !p.hasPala
+          ? '<br/><small style="color:#ffd43b;font-weight:600;">Raggiungi la cas. ' +
+            PALA_CELL +
+            " (cantiere) e usa «Prendi la pala» oppure passaci col dado.</small>"
+          : "";
+        el.innerHTML =
+          'Turno di <span class="human">' +
+          p.name +
+          "</span> · sei tu!" +
+          need;
+        document.getElementById("btnRoll").hidden = false;
+        btnPala.hidden = p.hasPala || p.pos < PALA_CELL;
+        btnLascia.hidden = !p.hasPala || p.pos < PALA_CELL;
+      }
+    }
+
+    function rollValue() {
+      return 1 + Math.floor(Math.random() * 6);
+    }
+
+    function doRoll() {
+      if (!running) return;
+      const p = players[turn];
+      const hadPalaBeforeRoll = p.hasPala;
+      const d = rollValue();
+      const diceU = ["\u2680", "\u2681", "\u2682", "\u2683", "\u2684", "\u2685"];
+      document.getElementById("dice").textContent = diceU[d - 1];
+      const from = p.pos;
+      const raw = from + d;
+      let to = Math.min(GOAL, raw);
+      p.pos = to;
+      if (!p.isRobot) aggiornaPalaUmano(p);
+      let extra = "";
+      if (!p.isRobot && p.hasPala && !hadPalaBeforeRoll) {
+        extra = " — Hai la pala dal cantiere!";
+      }
+      document.getElementById("lastRoll").textContent =
+        p.name +
+        (p.isRobot ? " (robot)" : "") +
+        " ha fatto " +
+        d +
+        (d === 6 ? " — Grande!" : d === 1 ? " — Accidenti!" : "") +
+        extra;
+      renderLanes();
+      const vince = p.pos >= GOAL;
+      if (vince) {
+        running = false;
+        document.getElementById("btnRoll").hidden = true;
+        document.getElementById("btnPala").hidden = true;
+        document.getElementById("btnLasciaPala").hidden = true;
+        document.getElementById("winTitle").textContent = p.name + " ha vinto!";
+        document.getElementById("winMsg").textContent = p.isRobot
+          ? "Il robot " + p.name + " è arrivato primo a 40!"
+          : "Complimenti: " +
+              p.name +
+              " è arrivato primo a 40" +
+              (p.hasPala ? " con la pala 🪏!" : "!");
+        document.getElementById("overlay").classList.add("on");
+        try {
+          confettiLite();
+        } catch (_) {}
+        return;
+      }
+      turn = (turn + 1) % 5;
+      nextTurn();
+    }
+
+    function confettiLite() {
+      const c = document.createElement("canvas");
+      c.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:60;width:100%;height:100%";
+      document.body.appendChild(c);
+      const W = (c.width = innerWidth),
+        H = (c.height = innerHeight);
+      const x = c.getContext("2d");
+      const parts = [];
+      for (let i = 0; i < 80; i++) {
+        parts.push({
+          x: W / 2,
+          y: H * 0.4,
+          vx: (Math.random() - 0.5) * 14,
+          vy: -8 - Math.random() * 10,
+          c: ["#ff6b6b", "#ffd43b", "#69db7c", "#4dabf7", "#da77f2"][(Math.random() * 5) | 0],
+        });
+      }
+      let t0 = performance.now();
+      let prev = t0;
+      function frame(now) {
+        const dt = Math.min(40, now - prev);
+        prev = now;
+        x.clearRect(0, 0, W, H);
+        for (const p of parts) {
+          p.vy += 0.35 * (dt / 16);
+          p.x += p.vx * (dt / 16);
+          p.y += p.vy * (dt / 16);
+          x.fillStyle = p.c;
+          x.fillRect(p.x, p.y, 6, 6);
+        }
+        if (now - t0 < 2200) requestAnimationFrame(frame);
+        else c.remove();
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function nextTurn() {
+      if (!running) return;
+      sayTurn();
+      const p = players[turn];
+      if (p.isRobot) {
+        setTimeout(() => {
+          document.getElementById("dice").textContent = "🤔";
+          setTimeout(doRoll, 500 + Math.random() * 400);
+        }, 600);
+      }
+    }
+
+    document.getElementById("btnStart").onclick = startGame;
+    document.getElementById("btnRoll").onclick = () => {
+      doRoll();
+    };
+    document.getElementById("btnPala").onclick = () => {
+      if (!running) return;
+      const p = players[turn];
+      if (p.isRobot || p.hasPala) return;
+      if (p.pos < PALA_CELL) {
+        alert(
+          "Per prendere la pala devi essere almeno alla casella " +
+            PALA_CELL +
+            " (cantiere). Lancia il dado finché non ci arrivi."
+        );
+        return;
+      }
+      aggiornaPalaUmano(p);
+      renderLanes();
+      document.getElementById("lastRoll").textContent =
+        p.name + ": hai ripreso la pala al cantiere 🪏";
+      document.getElementById("btnPala").hidden = true;
+      document.getElementById("btnLasciaPala").hidden = false;
+      document.getElementById("turnMsg").innerHTML =
+        'Turno di <span class="human">' +
+        p.name +
+        '</span> · sei tu!<br/><small style="color:#69db7c;font-weight:700;">Pala in mano — puoi correre o lasciarla cadere se vuoi provare.</small>';
+    };
+    document.getElementById("btnLasciaPala").onclick = () => {
+      if (!running) return;
+      const p = players[turn];
+      if (p.isRobot || !p.hasPala) return;
+      p.hasPala = false;
+      renderLanes();
+      document.getElementById("lastRoll").textContent =
+        p.name +
+        ": la pala è caduta per terra al cantiere — riprendila con il pulsante verde o col prossimo lancio (se sei dal " +
+        PALA_CELL +
+        " in su)!";
+      document.getElementById("btnPala").hidden = p.pos < PALA_CELL;
+      document.getElementById("btnLasciaPala").hidden = true;
+      document.getElementById("turnMsg").innerHTML =
+        'Turno di <span class="human">' +
+        p.name +
+        '</span> · sei tu!<br/><small style="color:#ffd43b;font-weight:600;">Senza pala: usa «Prendi la pala» se sei a cas. ' +
+        PALA_CELL +
+        "+, oppure lancia il dado.</small>";
+    };
+    document.getElementById("btnAgain").onclick = () => {
+      document.getElementById("overlay").classList.remove("on");
+      document.getElementById("setupPanel").style.display = "block";
+      document.getElementById("gamePanel").classList.remove("on");
+      buildSetup();
+    };
+
+    buildSetup();
+  </script>
+</body>
+</html>

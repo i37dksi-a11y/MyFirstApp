@@ -1,0 +1,19 @@
+{
+  "name": "MyFirstApp — Giochi",
+  "short_name": "MyFirstApp",
+  "description": "Tutti i giochi in un'unica app",
+  "start_url": "./app.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0e14",
+  "theme_color": "#4dabf7",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

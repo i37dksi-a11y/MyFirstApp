@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Ninja — stile Google (offline runner)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+      background: #fafafa;
+      color: #5f6368;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      touch-action: manipulation;
+    }
+    .chrome-ish {
+      width: 100%;
+      max-width: 640px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: #202124;
+      margin: 0 0 0.35rem;
+    }
+    .sub {
+      font-size: 0.85rem;
+      color: #5f6368;
+      margin: 0 0 0.75rem;
+      line-height: 1.45;
+    }
+    #stage-wrap {
+      background: #fff;
+      border: 1px solid #dadce0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(60, 64, 67, 0.15);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      vertical-align: middle;
+      touch-action: none;
+      cursor: pointer;
+    }
+    .hint {
+      margin: 0.65rem 0 0;
+      font-size: 0.78rem;
+      color: #80868b;
+    }
+    kbd {
+      font-size: 0.72em;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      background: #f1f3f4;
+      border: 1px solid #dadce0;
+    }
+    nav { margin-top: 1rem; font-size: 0.82rem; }
+    nav a { color: #1a73e8; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="chrome-ish">
+    <h1>Ninja runner</h1>
+    <p class="sub">Ispirato al gioco del dinosauro quando Chrome non ha rete: salta i paletti con il ninja.</p>
+    <div id="stage-wrap">
+      <canvas id="c" width="600" height="220" aria-label="Gioco ninja"></canvas>
+    </div>
+    <p class="hint">Spazio, clic o tocco per saltare · <kbd>↑</kbd> o <kbd>W</kbd> funzionano anche</p>
+    <nav><a href="entra.html">← Torna ai giochi</a></nav>
+  </div>
+  <script>
+(function () {
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  const groundY = H - 36;
+
+  let playing = false;
+  let gameOver = false;
+  let frame = 0;
+  let score = 0;
+  let hi = Number(localStorage.getItem("ninjaGoogleHi") || 0) || 0;
+  let speed = 5.2;
+  let nextSpawn = 0;
+
+  const ninja = {
+    x: 72,
+    y: groundY,
+    w: 34,
+    h: 52,
+    vy: 0,
+    onGround: true,
+    legPhase: 0,
+  };
+
+  const obstacles = [];
+
+  function resetGame() {
+    playing = true;
+    gameOver = false;
+    frame = 0;
+    score = 0;
+    speed = 5.2;
+    nextSpawn = 40;
+    ninja.y = groundY;
+    ninja.vy = 0;
+    ninja.onGround = true;
+    ninja.legPhase = 0;
+    obstacles.length = 0;
+  }
+
+  function jump() {
+    if (!playing) {
+      resetGame();
+      return;
+    }
+    if (gameOver) {
+      resetGame();
+      return;
+    }
+    if (ninja.onGround) {
+      ninja.vy = -12.2;
+      ninja.onGround = false;
+    }
+  }
+
+  function spawnObstacle() {
+    const tall = Math.random() < 0.35;
+    obstacles.push({
+      x: W + 20,
+      w: tall ? 22 : 18,
+      h: tall ? 48 : 32,
+      y: groundY,
+    });
+  }
+
+  function hitbox() {
+    const padX = 6;
+    const padY = 4;
+    return {
+      nx: ninja.x + padX,
+      ny: ninja.y - ninja.h + padY,
+      nw: ninja.w - padX * 2,
+      nh: ninja.h - padY * 2,
+    };
+  }
+
+  function collides(o) {
+    const { nx, ny, nw, nh } = hitbox();
+    const ox = o.x;
+    const oy = o.y - o.h;
+    return nx < ox + o.w && nx + nw > ox && ny < oy + o.h && ny + nh > oy;
+  }
+
+  function drawBackground() {
+    ctx.fillStyle = "#f7f7f7";
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = "#e8eaed";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY + 0.5);
+    ctx.lineTo(W, groundY + 0.5);
+    ctx.stroke();
+    ctx.fillStyle = "#bdc1c6";
+    ctx.fillRect(0, groundY + 1, W, H - groundY - 1);
+  }
+
+  function drawNinja() {
+    const x = ninja.x;
+    const bottom = ninja.y;
+    const run = playing && !gameOver && ninja.onGround;
+    const leg = run ? Math.sin(frame * 0.35) * 5 : 0;
+
+    ctx.save();
+    ctx.translate(x, bottom);
+
+    ctx.fillStyle = "#202124";
+    ctx.beginPath();
+    ctx.ellipse(17, -46, 9, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#ea4335";
+    ctx.beginPath();
+    ctx.moveTo(8, -48);
+    ctx.lineTo(26, -48);
+    ctx.lineTo(22, -42);
+    ctx.lineTo(12, -42);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = "#202124";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(26, -44);
+    ctx.quadraticCurveTo(38, -40, 42, -32);
+    ctx.stroke();
+
+    ctx.fillStyle = "#202124";
+    ctx.fillRect(10, -38, 14, 22);
+
+    ctx.strokeStyle = "#5f6368";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(24, -34);
+    ctx.quadraticCurveTo(44 + (frame % 8) * 0.5, -28, 52, -22);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#202124";
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(10, -22);
+    ctx.lineTo(6 + leg * 0.3, -6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(22, -22);
+    ctx.lineTo(26 - leg * 0.3, -6);
+    ctx.stroke();
+
+    ctx.fillStyle = "#202124";
+    ctx.fillRect(4, -8, 10, 8);
+    ctx.fillRect(18, -8, 10, 8);
+
+    ctx.restore();
+  }
+
+  function drawObstacle(o) {
+    const x = o.x;
+    const y = o.y - o.h;
+    ctx.fillStyle = "#34a853";
+    ctx.fillRect(x, y, o.w, o.h);
+    ctx.fillStyle = "#1e8e3e";
+    ctx.fillRect(x + 3, y + 4, o.w - 6, 6);
+  }
+
+  function drawUI() {
+    ctx.fillStyle = "#5f6368";
+    ctx.font = "600 14px system-ui, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText("Punteggio: " + Math.floor(score), W - 12, 22);
+    ctx.font = "500 12px system-ui, sans-serif";
+    ctx.fillText("Record: " + Math.floor(hi), W - 12, 40);
+
+    if (!playing && !gameOver) {
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#202124";
+      ctx.font = "500 15px system-ui, sans-serif";
+      ctx.fillText("Premi spazio o tocca per iniziare", W / 2, H / 2 - 8);
+      ctx.fillStyle = "#5f6368";
+      ctx.font = "400 13px system-ui, sans-serif";
+      ctx.fillText("Evita i paletti verdi", W / 2, H / 2 + 14);
+    } else if (gameOver) {
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#202124";
+      ctx.font = "600 16px system-ui, sans-serif";
+      ctx.fillText("Ops! Il ninja ha urtato un paletto.", W / 2, H / 2 - 14);
+      ctx.fillStyle = "#5f6368";
+      ctx.font = "400 13px system-ui, sans-serif";
+      ctx.fillText("Spazio o tocco per riprovare", W / 2, H / 2 + 10);
+    }
+  }
+
+  function tick() {
+    drawBackground();
+
+    if (playing && !gameOver) {
+      frame++;
+      score += speed * 0.08;
+      speed = Math.min(13, 5.2 + score * 0.0012);
+
+      ninja.vy += 0.58;
+      ninja.y += ninja.vy;
+      if (ninja.y >= groundY) {
+        ninja.y = groundY;
+        ninja.vy = 0;
+        ninja.onGround = true;
+      }
+
+      nextSpawn--;
+      if (nextSpawn <= 0) {
+        spawnObstacle();
+        nextSpawn = Math.max(
+          14,
+          38 + Math.random() * 28 - Math.min(12, score * 0.015)
+        );
+      }
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const o = obstacles[i];
+        o.x -= speed;
+        if (collides(o)) {
+          gameOver = true;
+          playing = false;
+          if (score > hi) {
+            hi = score;
+            localStorage.setItem("ninjaGoogleHi", String(hi));
+          }
+        }
+        if (o.x + o.w < -10) obstacles.splice(i, 1);
+      }
+    }
+
+    for (const o of obstacles) drawObstacle(o);
+    drawNinja();
+    drawUI();
+
+    requestAnimationFrame(tick);
+  }
+
+  window.addEventListener("keydown", function (e) {
+    if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+      e.preventDefault();
+      jump();
+    }
+  });
+  canvas.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    jump();
+  });
+
+  resetGame();
+  playing = false;
+  gameOver = false;
+  obstacles.length = 0;
+  requestAnimationFrame(tick);
+})();
+  </script>
+</body>
+</html>
