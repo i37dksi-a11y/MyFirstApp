@@ -268,6 +268,57 @@
       border-radius: 12px;
       border: 1px dashed rgba(77,171,247,0.3);
     }
+    .creator-panel {
+      border-color: rgba(255, 212, 59, 0.35);
+      background: linear-gradient(160deg, #1f2a1a, #141b26);
+    }
+    .creator-panel h3 {
+      margin: 0 0 0.65rem;
+      font-size: 1rem;
+      color: #ffd43b;
+    }
+    .creator-panel .earn-note {
+      margin: 0.65rem 0 0;
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .earn-list {
+      list-style: none;
+      margin: 0.75rem 0 0;
+      padding: 0;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .earn-list li {
+      font-size: 0.78rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      color: #c5d0de;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .earn-list li strong { color: #8ce99a; white-space: nowrap; }
+    #creator-login input {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(0,0,0,0.25);
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    #creator-login button {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 0.7rem;
+      font-weight: 700;
+      background: linear-gradient(180deg, #51cf66, #2f9e44);
+      color: #fff;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -304,6 +355,21 @@
     </section>
 
     <section class="screen" id="screen-profile">
+      <div class="profile-card creator-panel" id="creator-panel" hidden>
+        <h3>👑 Soldi presi (creatore MyFirstApp)</h3>
+        <div class="stat-row">
+          <div class="stat"><strong id="earnTotal">0</strong><span>Franchi totali</span></div>
+          <div class="stat"><strong id="earnCount">0</strong><span>Pagamenti</span></div>
+        </div>
+        <ul class="earn-list" id="earnList"></ul>
+        <p class="earn-note">Ogni volta che qualcuno paga in Potenza Pancia (200 franchi), il totale sale qui.</p>
+      </div>
+      <div class="profile-card" id="creator-login" hidden>
+        <h3 style="margin:0 0 0.5rem;font-size:0.95rem;color:#8ce99a">🔐 Accesso creatore</h3>
+        <input type="password" id="creatorPass" placeholder="Password creatore" autocomplete="off" />
+        <button type="button" id="btnCreatorLogin">Vedi i guadagni</button>
+        <p class="earn-note" style="margin-top:0.5rem">Tieni premuto «MyFirstApp» in alto per 2 secondi.</p>
+      </div>
       <div class="profile-card">
         <label for="userName">Il tuo nome</label>
         <input type="text" id="userName" placeholder="Scrivi il tuo nome" maxlength="24" />
@@ -331,6 +397,7 @@
     <button type="button" data-tab="profile"><span class="ico">👤</span>Profilo</button>
   </nav>
 
+  <script src="myfirstapp-earnings.js"></script>
   <script>
 (function () {
   const GAMES = [
@@ -354,6 +421,7 @@
     { id: "puff", name: "Parco dei puff", ico: "☁️", href: "gioco-divertente-tranquillo.html", cat: "relax" },
     { id: "piantina", name: "Prendi la piantina", ico: "🌱", href: "prendi-la-piantina.html", cat: "relax" },
     { id: "formiche", name: "Formiche", ico: "🐜", href: "gioco-formiche.html", cat: "altro" },
+    { id: "pancia", name: "Potenza Pancia", ico: "💪", href: "potenza-pancia.html", cat: "altro" },
     { id: "bufale", name: "Bufale sul nastro", ico: "🤪", href: "gioco-molto-divertente.html", cat: "altro" },
     { id: "cinque-mini", name: "Cinque giochi mini", ico: "🎯", href: "cinque-giochi.html", cat: "altro" },
     { id: "tre", name: "Tre giochi", ico: "3️⃣", href: "tre-giochi.html", cat: "altro" },
@@ -464,7 +532,69 @@
     document.getElementById("appSub").textContent = name
       ? "Pronto a giocare, " + name + "?"
       : "Ciao! Scegli un gioco.";
+    paintCreatorEarnings();
   }
+
+  function paintCreatorEarnings() {
+    const panel = document.getElementById("creator-panel");
+    if (!window.MyFirstAppEarnings || !MyFirstAppEarnings.isCreator()) {
+      panel.hidden = true;
+      return;
+    }
+    const data = MyFirstAppEarnings.load();
+    panel.hidden = false;
+    document.getElementById("earnTotal").textContent = MyFirstAppEarnings.formatChf(data.totalChf);
+    document.getElementById("earnCount").textContent = String(data.count);
+    const list = document.getElementById("earnList");
+    list.innerHTML = "";
+    if (!data.payments.length) {
+      const li = document.createElement("li");
+      li.textContent = "Nessun pagamento ancora.";
+      list.appendChild(li);
+      return;
+    }
+    data.payments.forEach(function (p) {
+      const li = document.createElement("li");
+      const when = new Date(p.at);
+      const date = when.toLocaleDateString("it-CH") + " " + when.toLocaleTimeString("it-CH", { hour: "2-digit", minute: "2-digit" });
+      li.innerHTML = "<span>" + p.game + " · " + date + "</span><strong>+" + p.amountChf + " CHF</strong>";
+      list.appendChild(li);
+    });
+  }
+
+  function tryCreatorLogin() {
+    const pass = document.getElementById("creatorPass").value;
+    if (window.MyFirstAppEarnings && MyFirstAppEarnings.loginCreator(pass)) {
+      document.getElementById("creator-login").hidden = true;
+      document.getElementById("creatorPass").value = "";
+      paintCreatorEarnings();
+      document.querySelectorAll("nav.bottom button").forEach(function (b) {
+        b.classList.toggle("on", b.getAttribute("data-tab") === "profile");
+      });
+      document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("on"); });
+      document.getElementById("screen-profile").classList.add("on");
+    } else {
+      alert("Password creatore sbagliata.");
+    }
+  }
+
+  let titlePress = null;
+  document.getElementById("appTitle").addEventListener("pointerdown", function () {
+    titlePress = setTimeout(function () {
+      document.getElementById("creator-login").hidden = false;
+      document.querySelectorAll("nav.bottom button").forEach(function (b) {
+        b.classList.toggle("on", b.getAttribute("data-tab") === "profile");
+      });
+      document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("on"); });
+      document.getElementById("screen-profile").classList.add("on");
+    }, 2000);
+  });
+  document.getElementById("appTitle").addEventListener("pointerup", function () { clearTimeout(titlePress); });
+  document.getElementById("appTitle").addEventListener("pointerleave", function () { clearTimeout(titlePress); });
+  document.getElementById("btnCreatorLogin").addEventListener("click", tryCreatorLogin);
+  document.getElementById("creatorPass").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") tryCreatorLogin();
+  });
 
   function renderChips() {
     const box = document.getElementById("chips");

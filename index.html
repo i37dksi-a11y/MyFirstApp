@@ -418,12 +418,40 @@
       position: relative;
       line-height: 0;
     }
+    .play-hub {
+      width: 100%;
+      max-width: 380px;
+      margin: 0 auto;
+      padding: 0.75rem 1rem 0;
+      text-align: center;
+    }
+    .play-hub a.main {
+      display: block;
+      padding: 0.85rem 1rem;
+      border-radius: 14px;
+      font-weight: 800;
+      text-decoration: none;
+      color: #0c1a2e;
+      background: linear-gradient(180deg, #74c0fc, #339af0);
+      box-shadow: 0 4px 0 #1864ab;
+      font-size: 0.95rem;
+    }
+    .play-hub a.main:active { transform: translateY(2px); box-shadow: 0 2px 0 #1864ab; }
+    .play-hub .sub-link {
+      display: inline-block;
+      margin-top: 0.55rem;
+      color: #74c0fc;
+      font-weight: 650;
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
-  <nav style="width:100%;max-width:380px;text-align:center;margin:0 auto;padding:0.75rem 1rem 0;font-size:0.92rem;" aria-label="Ingresso hub">
-    <a href="entra.html" style="color:#74c0fc;font-weight:650;">Entra — tutti i giochi</a>
-  </nav>
+  <div class="play-hub">
+    <a class="main" href="app.html">🎮 MyFirstApp — gioca tutti i giochi</a>
+    <a class="sub-link" href="entra.html">Lista completa dei giochi</a>
+  </div>
   <main class="app-card" id="saluto">
     <h1>La mia prima app</h1>
     <p class="sub">Scrivi il tuo nome, poi usa i pulsanti. Sotto: scimmia, leone e lupo, e Tom &amp; Jerry.</p>

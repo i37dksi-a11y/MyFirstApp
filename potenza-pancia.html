@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Potenza Pancia</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, "Segoe UI", sans-serif;
+      background: radial-gradient(ellipse 120% 90% at 50% -10%, #3d1f4a 0%, #120a18 55%);
+      color: #f2e8ff;
+      padding: 0.75rem 0.75rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin: 0 0 0.25rem;
+      font-size: 1.35rem;
+      text-align: center;
+      background: linear-gradient(90deg, #ffd43b, #ff6b6b, #cc5de8);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      user-select: none;
+    }
+    p.intro {
+      margin: 0 0 0.75rem;
+      text-align: center;
+      font-size: 0.82rem;
+      color: #b8a8c8;
+      max-width: 420px;
+      line-height: 1.45;
+    }
+    #lang-wrap {
+      width: 100%;
+      max-width: 420px;
+      margin-bottom: 0.55rem;
+    }
+    #lang-wrap label {
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #9b8aad;
+      margin-bottom: 0.3rem;
+    }
+    #lang {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      font-size: 0.9rem;
+    }
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 0.3rem 0.65rem;
+      border-radius: 999px;
+      margin-bottom: 0.55rem;
+    }
+    .badge.owner { background: rgba(81, 207, 102, 0.2); color: #8ce99a; border: 1px solid rgba(81, 207, 102, 0.45); }
+    .badge.free { background: rgba(77, 171, 247, 0.2); color: #91d5ff; border: 1px solid rgba(77, 171, 247, 0.45); }
+    .badge.paid { background: rgba(255, 212, 59, 0.15); color: #ffe066; border: 1px solid rgba(255, 212, 59, 0.4); }
+    .badge.guest { background: rgba(255, 107, 107, 0.15); color: #ffa8a8; border: 1px solid rgba(255, 107, 107, 0.35); }
+    #stage {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: #0a0610;
+      box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.5),
+        0 0 0 2px rgba(255, 212, 59, 0.25),
+        inset 0 0 40px rgba(204, 93, 232, 0.15);
+    }
+    video, #preview {
+      display: block;
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      object-fit: cover;
+      background: #1a1028;
+    }
+    #preview { display: none; }
+    #overlay-ui {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .belly-guide {
+      width: 62%;
+      height: 48%;
+      border: 3px dashed rgba(255, 212, 59, 0.85);
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 9999px rgba(0, 0, 0, 0.35),
+        inset 0 0 30px rgba(255, 107, 107, 0.25);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.03); opacity: 1; }
+    }
+    .guide-label {
+      position: absolute;
+      bottom: 14%;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #ffe066;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+    }
+    #scan-line {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #51cf66, #ffd43b, #51cf66, transparent);
+      box-shadow: 0 0 16px #51cf66;
+      top: 20%;
+      opacity: 0;
+    }
+    #scan-line.on {
+      opacity: 1;
+      animation: scan 1.4s ease-in-out infinite;
+    }
+    @keyframes scan {
+      0% { top: 18%; }
+      100% { top: 72%; }
+    }
+    .controls {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+    button {
+      flex: 1;
+      min-width: 120px;
+      border: none;
+      border-radius: 14px;
+      padding: 0.8rem 0.9rem;
+      font-weight: 800;
+      font-size: 0.88rem;
+      cursor: pointer;
+      color: #fff;
+    }
+    #btn-scan {
+      background: linear-gradient(180deg, #ff6b6b, #c92a2a);
+      box-shadow: 0 5px 0 #862e2e;
+    }
+    #btn-scan:disabled {
+      opacity: 0.55;
+      cursor: wait;
+      transform: translateY(2px);
+      box-shadow: 0 3px 0 #862e2e;
+    }
+    #btn-flip, #btn-retry {
+      background: linear-gradient(180deg, #5c7cfa, #364fc7);
+      box-shadow: 0 5px 0 #243a8f;
+    }
+    #result {
+      width: 100%;
+      max-width: 420px;
+      margin-top: 0.85rem;
+      padding: 1rem 1.1rem;
+      border-radius: 18px;
+      background: linear-gradient(160deg, rgba(61, 31, 74, 0.95), rgba(18, 10, 24, 0.95));
+      border: 2px solid rgba(255, 212, 59, 0.35);
+      text-align: center;
+      display: none;
+    }
+    #result.on { display: block; }
+    #result.fake { border-color: rgba(255, 107, 107, 0.5); }
+    #result .tag {
+      display: inline-block;
+      margin: 0 0 0.5rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    #result .tag.truth { background: rgba(81, 207, 102, 0.2); color: #8ce99a; }
+    #result .tag.bluff { background: rgba(255, 107, 107, 0.2); color: #ffa8a8; }
+    #result .rank {
+      margin: 0 0 0.35rem;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #ffd43b;
+    }
+    #result .power {
+      margin: 0;
+      font-size: 2.4rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      color: #fff;
+      text-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
+    }
+    #result .msg {
+      margin: 0.55rem 0 0;
+      font-size: 0.86rem;
+      color: #d0bfe0;
+      line-height: 1.45;
+    }
+    #meter {
+      margin-top: 0.75rem;
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+    #meter > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #51cf66, #ffd43b, #ff6b6b, #cc5de8);
+      transition: width 0.8s ease-out;
+    }
+    #guest-note {
+      width: 100%;
+      max-width: 420px;
+      margin-top: 0.75rem;
+      padding: 0.85rem 1rem;
+      border-radius: 14px;
+      background: rgba(255, 107, 107, 0.1);
+      border: 1px solid rgba(255, 107, 107, 0.3);
+      font-size: 0.8rem;
+      color: #ffc9c9;
+      line-height: 1.45;
+      display: none;
+    }
+    #guest-note.on { display: block; }
+    #paywall {
+      width: 100%;
+      max-width: 420px;
+      margin-top: 0.75rem;
+      padding: 1rem;
+      border-radius: 18px;
+      background: linear-gradient(160deg, rgba(80, 45, 20, 0.9), rgba(30, 18, 8, 0.95));
+      border: 2px solid rgba(255, 212, 59, 0.5);
+      display: none;
+    }
+    #paywall.on { display: block; }
+    #paywall h2 { margin: 0 0 0.4rem; font-size: 1rem; color: #ffd43b; }
+    #paywall p { margin: 0 0 0.65rem; font-size: 0.82rem; color: #e8d5b5; line-height: 1.45; }
+    #paywall .price { font-size: 1.45rem; font-weight: 900; color: #fff; margin-bottom: 0.55rem; }
+    #paywall input {
+      width: 100%;
+      padding: 0.7rem 0.8rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+    #paywall input:focus { outline: none; border-color: #ffd43b; }
+    #paywall .hint { font-size: 0.74rem; color: #b8a88a; margin-top: 0.5rem; line-height: 1.4; }
+    #paywall .or { text-align: center; font-size: 0.75rem; color: #b8a88a; margin: 0.55rem 0; font-weight: 700; }
+    .btn-pay {
+      display: block;
+      width: 100%;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 14px;
+      padding: 0.8rem 0.9rem;
+      font-weight: 800;
+      font-size: 0.88rem;
+      color: #2b1d00;
+      background: linear-gradient(180deg, #ffd43b, #f59f00);
+      box-shadow: 0 5px 0 #b37400;
+      margin-bottom: 0.35rem;
+    }
+    #btn-free-pass {
+      width: 100%;
+      background: linear-gradient(180deg, #51cf66, #2f9e44);
+      box-shadow: 0 5px 0 #1e6b32;
+    }
+    #btn-paid-done {
+      width: 100%;
+      margin-top: 0.35rem;
+      background: linear-gradient(180deg, #5c7cfa, #364fc7);
+      box-shadow: 0 5px 0 #243a8f;
+    }
+    #owner-panel {
+      width: 100%;
+      max-width: 420px;
+      margin-top: 0.75rem;
+      padding: 1rem;
+      border-radius: 18px;
+      background: rgba(20, 40, 30, 0.9);
+      border: 2px solid rgba(81, 207, 102, 0.4);
+      display: none;
+    }
+    #owner-panel.on { display: block; }
+    #owner-panel h2 { margin: 0 0 0.5rem; font-size: 0.95rem; color: #8ce99a; }
+    #owner-panel input {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.25);
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+    #owner-panel .hint {
+      font-size: 0.74rem;
+      color: #8ce99a;
+      margin-top: 0.5rem;
+      line-height: 1.4;
+    }
+    #err {
+      width: 100%;
+      max-width: 420px;
+      margin-top: 0.75rem;
+      padding: 0.85rem;
+      border-radius: 14px;
+      background: rgba(201, 42, 42, 0.2);
+      border: 1px solid rgba(255, 107, 107, 0.45);
+      color: #ffc9c9;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      display: none;
+    }
+    #err.on { display: block; }
+    #err.ok {
+      background: rgba(47, 158, 68, 0.2);
+      border-color: rgba(81, 207, 102, 0.45);
+      color: #b2f2bb;
+    }
+    nav {
+      margin-top: 1rem;
+      font-size: 0.82rem;
+    }
+    nav a {
+      color: #b197fc;
+      font-weight: 600;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="lang-wrap">
+    <label for="lang" id="lang-label">Lingua</label>
+    <select id="lang" aria-label="Language"></select>
+  </div>
+
+  <h1 id="title">💪 Potenza Pancia</h1>
+  <div class="badge guest" id="mode-badge"></div>
+  <p class="intro" id="intro"></p>
+
+  <div id="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="preview" width="360" height="480" aria-hidden="true"></canvas>
+    <div id="overlay-ui">
+      <div class="belly-guide" id="guide"></div>
+      <div id="scan-line"></div>
+      <div class="guide-label" id="guide-label"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button type="button" id="btn-scan"></button>
+    <button type="button" id="btn-flip"></button>
+  </div>
+
+  <div id="err"></div>
+  <div id="guest-note"></div>
+
+  <div id="paywall">
+    <h2 id="pay-title"></h2>
+    <p id="pay-desc"></p>
+    <div class="price" id="price-label"></div>
+    <a class="btn-pay" id="btn-pay" href="#" target="_blank" rel="noopener"></a>
+    <button type="button" id="btn-paid-done"></button>
+    <div class="or" id="pay-or"></div>
+    <input type="password" id="free-pass" autocomplete="off" />
+    <button type="button" id="btn-free-pass"></button>
+    <p class="hint" id="pay-hint"></p>
+  </div>
+
+  <div id="owner-panel">
+    <h2 id="owner-title"></h2>
+    <input type="password" id="owner-pass" autocomplete="off" />
+    <button type="button" id="btn-owner-login" style="width:100%;background:linear-gradient(180deg,#51cf66,#2f9e44);box-shadow:0 5px 0 #1e6b32;"></button>
+    <p class="hint" id="owner-hint"></p>
+    <div id="owner-earnings" style="display:none;margin-top:0.75rem;padding:0.75rem;border-radius:12px;background:rgba(0,0,0,0.25);text-align:center;">
+      <div style="font-size:0.72rem;color:#8ce99a;margin-bottom:0.25rem;">💰 Guadagni MyFirstApp</div>
+      <div style="font-size:1.35rem;font-weight:900;color:#ffd43b;" id="owner-earn-total">0 CHF</div>
+      <div style="font-size:0.75rem;color:#b8a8c8;margin-top:0.2rem;" id="owner-earn-count"></div>
+    </div>
+  </div>
+
+  <div id="result">
+    <span class="tag bluff" id="result-tag"></span>
+    <p class="rank" id="rank"></p>
+    <p class="power" id="power"></p>
+    <div id="meter"><i id="meter-fill"></i></div>
+    <p class="msg" id="msg"></p>
+    <div class="controls" style="margin-top:0.75rem;">
+      <button type="button" id="btn-retry"></button>
+    </div>
+  </div>
+
+  <nav><a href="app.html" id="nav-back"></a></nav>
+
+  <script src="myfirstapp-earnings.js"></script>
+  <script>
+(function () {
+  const CONFIG = {
+    OWNER_SECRET: "idris-pancia-2026",
+    FREE_PASSWORD: "quellobello!!",
+    PRICE: 200,
+    CURRENCY: "CHF",
+    PAYPAL_USERNAME: "i37dksi",
+  };
+  const LS_OWNER = "pancia_owner_v2";
+  const LS_FREE = "pancia_free_v1";
+  const LS_PAID = "pancia_paid_v1";
+  const LS_LANG = "pancia_lang_v1";
+
+  const LANG_META = [
+    { code: "it", label: "🇮🇹 Italiano" },
+    { code: "en", label: "🇬🇧 English" },
+    { code: "es", label: "🇪🇸 Español" },
+    { code: "fr", label: "🇫🇷 Français" },
+    { code: "de", label: "🇩🇪 Deutsch" },
+    { code: "pt", label: "🇵🇹 Português" },
+    { code: "ar", label: "🇸🇦 العربية" },
+    { code: "zh", label: "🇨🇳 中文" },
+    { code: "ja", label: "🇯🇵 日本語" },
+    { code: "ko", label: "🇰🇷 한국어" },
+    { code: "ru", label: "🇷🇺 Русский" },
+    { code: "tr", label: "🇹🇷 Türkçe" },
+    { code: "hi", label: "🇮🇳 हिन्दी" },
+    { code: "pl", label: "🇵🇱 Polski" },
+    { code: "nl", label: "🇳🇱 Nederlands" },
+    { code: "ro", label: "🇷🇴 Română" },
+    { code: "uk", label: "🇺🇦 Українська" },
+    { code: "id", label: "🇮🇩 Bahasa Indonesia" },
+    { code: "vi", label: "🇻🇳 Tiếng Việt" },
+    { code: "el", label: "🇬🇷 Ελληνικά" },
+    { code: "sv", label: "🇸🇪 Svenska" },
+    { code: "cs", label: "🇨🇿 Čeština" },
+    { code: "hu", label: "🇭🇺 Magyar" },
+    { code: "th", label: "🇹🇭 ไทย" },
+    { code: "he", label: "🇮🇱 עברית" },
+  ];
+
+  const T = {
+    it: {
+      title: "💪 Potenza Pancia",
+      intro: "Mostra la pancia e premi Scansiona. Il creatore vede sempre la verità. Gli altri pagano 200 franchi o usano la password segreta — puoi scansionare quante volte vuoi.",
+      langLabel: "Lingua",
+      guide: "Metti la pancia qui",
+      scan: "⚡ Scansiona pancia",
+      flip: "🔄 Cambia camera",
+      retry: "🔁 Misura di nuovo",
+      back: "← Torna all'app",
+      badgeOwner: "👑 Creatore — verità gratis",
+      badgeFree: "🔓 Password ok — non paghi",
+      badgePaid: "💳 Hai pagato — verità sbloccata",
+      badgeGuest: "Ospite — risultato falso",
+      tagTruth: "Verità",
+      tagBluff: "Bluff",
+      guestNote: "Risultato inventato! Paga 200 franchi o usa la password segreta per la verità. Puoi scansionare sempre.",
+      payTitle: "🔒 Vuoi la verità?",
+      payDesc: "Per vedere la misura vera devi pagare 200 franchi a chi ha creato il gioco sull'app. Con la password segreta non paghi.",
+      payBtn: "💳 Paga 200 franchi (PayPal)",
+      paidDone: "✅ Ho già pagato",
+      payOr: "— oppure password segreta —",
+      freePassPh: "Password segreta (non paghi)",
+      freePassBtn: "🔓 Inserisci password",
+      payHint: "Password corretta = verità gratis, senza pagare 200 franchi.",
+      errFreeWrong: "Password sbagliata. Devi pagare 200 franchi al creatore oppure chiedere la password.",
+      errFreeOk: "✅ Password corretta! Non devi pagare. Ora vedi la verità.",
+      errPaidOk: "✅ Ok! Alla prossima scansione vedi la verità.",
+      ownerTitle: "👑 Modalità creatore",
+      ownerPass: "Password segreta creatore",
+      ownerLogin: "Entra come creatore",
+      ownerHint: "Tieni premuto il titolo 2 secondi per aprire questo pannello.",
+      errCamera: "Non riesco ad accedere alla fotocamera. Controlla i permessi e riprova.",
+      errNoCamera: "Questo browser non supporta la fotocamera.",
+      errOwnerWrong: "Password creatore sbagliata.",
+      errOwnerOk: "✅ Sei il creatore! Ora vedi la verità.",
+      errLowCoverage: "Non vedo bene la pancia nel cerchio. Avvicinati e riprova!",
+      ranks: [
+        { min: 0, title: "Pancia in riposo 😴", msg: "La pancia sta caricando energia." },
+        { min: 1200, title: "Guerriero della merenda 🍪", msg: "Hai potenziale!" },
+        { min: 4500, title: "Maestro del panino 🥪", msg: "La pancia vibra di potere." },
+        { min: 12000, title: "Super Saiyan della pasta 🍝", msg: "Incredibile potenza!" },
+        { min: 35000, title: "Dio della pizza 🍕", msg: "Nessuno osa l'ultima fetta." },
+        { min: 90000, title: "ULTRA PANCIA 👑", msg: "Livello mitico!" },
+        { min: 200000, title: "PANCIOSAURO 🦖", msg: "Sei una leggenda." },
+      ],
+      fake: [
+        { title: "Pancia di cartone 📦", msg: "Numero inventato a caso!" },
+        { title: "Finto guerriero 🎭", msg: "Non fidarti di questo risultato." },
+        { title: "Bluff supremo 🤥", msg: "Il misuratore sta mentendo." },
+        { title: "Pancia immaginaria 👻", msg: "È tutta scena!" },
+        { title: "Livello bugiardo 🐸", msg: "Risultato non reale." },
+      ],
+    },
+    en: {
+      title: "💪 Belly Power",
+      intro: "Show your belly and tap Scan. The creator always sees truth. Others pay 200 francs or use the secret password — scan as many times as you want.",
+      langLabel: "Language",
+      guide: "Put your belly here",
+      scan: "⚡ Scan belly",
+      flip: "🔄 Switch camera",
+      retry: "🔁 Scan again",
+      back: "← Back to app",
+      badgeOwner: "👑 Creator — free truth",
+      badgeFree: "🔓 Password ok — no payment",
+      badgePaid: "💳 Paid — truth unlocked",
+      badgeGuest: "Guest — fake result",
+      tagTruth: "Truth",
+      tagBluff: "Bluff",
+      guestNote: "Fake result! Pay 200 francs or use the secret password for truth. You can always scan again.",
+      payTitle: "🔒 Want the truth?",
+      payDesc: "Pay 200 francs to whoever created the game on the app. With the secret password you don't pay.",
+      payBtn: "💳 Pay 200 francs (PayPal)",
+      paidDone: "✅ I already paid",
+      payOr: "— or secret password —",
+      freePassPh: "Secret password (skip payment)",
+      freePassBtn: "🔓 Enter password",
+      payHint: "Correct password = free truth, no 200 francs payment.",
+      errFreeWrong: "Wrong password. Pay 200 francs to the creator or ask for the password.",
+      errFreeOk: "✅ Correct password! No payment needed. Truth unlocked.",
+      errPaidOk: "✅ OK! Next scan shows the truth.",
+      ownerTitle: "👑 Creator mode",
+      ownerPass: "Creator secret password",
+      ownerLogin: "Enter as creator",
+      ownerHint: "Hold the title for 2 seconds to open this panel.",
+      errCamera: "Cannot access the camera. Check permissions and try again.",
+      errNoCamera: "This browser does not support the camera.",
+      errOwnerWrong: "Wrong creator password.",
+      errOwnerOk: "✅ You are the creator! Truth mode enabled.",
+      errLowCoverage: "I can't see your belly well. Move closer and try again!",
+      ranks: [
+        { min: 0, title: "Sleeping belly 😴", msg: "Your belly is charging up." },
+        { min: 1200, title: "Snack warrior 🍪", msg: "You've got potential!" },
+        { min: 4500, title: "Sandwich master 🥪", msg: "Your belly vibrates with power." },
+        { min: 12000, title: "Pasta Super Saiyan 🍝", msg: "Amazing power!" },
+        { min: 35000, title: "Pizza god 🍕", msg: "Nobody touches the last slice." },
+        { min: 90000, title: "ULTRA BELLY 👑", msg: "Mythic level!" },
+        { min: 200000, title: "BELLYSAURUS 🦖", msg: "You are a legend." },
+      ],
+      fake: [
+        { title: "Cardboard belly 📦", msg: "Random fake number!" },
+        { title: "Fake warrior 🎭", msg: "Don't trust this result." },
+        { title: "Supreme bluff 🤥", msg: "The scanner is lying." },
+        { title: "Imaginary belly 👻", msg: "It's all a show!" },
+        { title: "Liar level 🐸", msg: "Not a real result." },
+      ],
+    },
+    es: {
+      title: "💪 Poder de Panza",
+      intro: "Muestra tu panza a la cámara y pulsa Escanear. Solo el creador ve la verdad — los demás ven un resultado falso.",
+      langLabel: "Idioma", guide: "Pon la panza aquí", scan: "⚡ Escanear panza", flip: "🔄 Cambiar cámara", retry: "🔁 Otra vez", back: "← Volver",
+      badgeOwner: "👑 Creador — verdad", badgeGuest: "Invitado — resultado falso", tagTruth: "Verdad", tagBluff: "Falso",
+      guestNote: "Este resultado es inventado. Solo el creador ve la medida real.",
+      ownerTitle: "👑 Modo creador", ownerPass: "Contraseña secreta", ownerLogin: "Entrar como creador",
+      ownerHint: "Mantén el título 2 segundos para abrir este panel.",
+      errCamera: "No puedo acceder a la cámara.", errNoCamera: "Este navegador no soporta la cámara.",
+      errOwnerWrong: "Contraseña incorrecta.", errOwnerOk: "✅ ¡Eres el creador! Modo verdad activado.",
+      errLowCoverage: "No veo bien la panza. ¡Acércate!",
+      ranks: [
+        { min: 0, title: "Panza dormida 😴", msg: "Cargando energía." },
+        { min: 1200, title: "Guerrero de merienda 🍪", msg: "¡Tienes potencial!" },
+        { min: 4500, title: "Maestro del bocadillo 🥪", msg: "Vibra de poder." },
+        { min: 12000, title: "Super Saiyan de pasta 🍝", msg: "¡Increíble!" },
+        { min: 35000, title: "Dios de la pizza 🍕", msg: "Nadie toca la última." },
+        { min: 90000, title: "ULTRA PANZA 👑", msg: "¡Nivel mítico!" },
+        { min: 200000, title: "PANCIASAURIO 🦖", msg: "Eres leyenda." },
+      ],
+      fake: [
+        { title: "Panza de cartón 📦", msg: "¡Número inventado!" },
+        { title: "Guerrero falso 🎭", msg: "No confíes." },
+        { title: "Bluff supremo 🤥", msg: "El medidor miente." },
+        { title: "Panza imaginaria 👻", msg: "¡Es truco!" },
+        { title: "Nivel mentiroso 🐸", msg: "No es real." },
+      ],
+    },
+    fr: {
+      title: "💪 Puissance du Ventre",
+      intro: "Montre ton ventre à la caméra et appuie sur Scanner. Seul le créateur voit la vérité — les autres voient un faux résultat.",
+      langLabel: "Langue", guide: "Mets ton ventre ici", scan: "⚡ Scanner le ventre", flip: "🔄 Changer caméra", retry: "🔁 Recommencer", back: "← Retour",
+      badgeOwner: "👑 Créateur — vérité", badgeGuest: "Invité — faux résultat", tagTruth: "Vérité", tagBluff: "Bluff",
+      guestNote: "Ce résultat est inventé. Seul le créateur voit la vraie mesure.",
+      ownerTitle: "👑 Mode créateur", ownerPass: "Mot de passe secret", ownerLogin: "Entrer comme créateur",
+      ownerHint: "Maintiens le titre 2 secondes pour ouvrir ce panneau.",
+      errCamera: "Impossible d'accéder à la caméra.", errNoCamera: "Ce navigateur ne supporte pas la caméra.",
+      errOwnerWrong: "Mot de passe incorrect.", errOwnerOk: "✅ Tu es le créateur ! Mode vérité activé.",
+      errLowCoverage: "Je ne vois pas bien le ventre. Rapproche-toi !",
+      ranks: [
+        { min: 0, title: "Ventre endormi 😴", msg: "Charge d'énergie." },
+        { min: 1200, title: "Guerrier du goûter 🍪", msg: "Du potentiel !" },
+        { min: 4500, title: "Maître du sandwich 🥪", msg: "Vibre de puissance." },
+        { min: 12000, title: "Super Saiyan des pâtes 🍝", msg: "Incroyable !" },
+        { min: 35000, title: "Dieu de la pizza 🍕", msg: "Personne ne touche la dernière." },
+        { min: 90000, title: "ULTRA VENTRE 👑", msg: "Niveau mythique !" },
+        { min: 200000, title: "VENTRESAURE 🦖", msg: "Tu es une légende." },
+      ],
+      fake: [
+        { title: "Ventre en carton 📦", msg: "Nombre inventé !" },
+        { title: "Faux guerrier 🎭", msg: "Ne fais pas confiance." },
+        { title: "Bluff suprême 🤥", msg: "Le scanner ment." },
+        { title: "Ventre imaginaire 👻", msg: "C'est du théâtre !" },
+        { title: "Niveau menteur 🐸", msg: "Pas réel." },
+      ],
+    },
+    de: {
+      title: "💪 Bauch-Power",
+      intro: "Zeig deinen Bauch der Kamera und tippe Scannen. Nur der Ersteller sieht die Wahrheit — alle anderen bekommen ein falsches Ergebnis.",
+      langLabel: "Sprache", guide: "Bauch hier hin", scan: "⚡ Bauch scannen", flip: "🔄 Kamera wechseln", retry: "🔁 Nochmal", back: "← Zurück",
+      badgeOwner: "👑 Ersteller — Wahrheit", badgeGuest: "Gast — falsches Ergebnis", tagTruth: "Wahrheit", tagBluff: "Bluff",
+      guestNote: "Dieses Ergebnis ist erfunden. Nur der Ersteller sieht die echte Messung.",
+      ownerTitle: "👑 Ersteller-Modus", ownerPass: "Geheimes Passwort", ownerLogin: "Als Ersteller einloggen",
+      ownerHint: "Titel 2 Sekunden gedrückt halten.",
+      errCamera: "Kein Kamerazugriff.", errNoCamera: "Browser unterstützt keine Kamera.",
+      errOwnerWrong: "Falsches Passwort.", errOwnerOk: "✅ Du bist der Ersteller! Wahrheitsmodus an.",
+      errLowCoverage: "Bauch nicht gut sichtbar. Näher ran!",
+      ranks: [
+        { min: 0, title: "Schlafender Bauch 😴", msg: "Lädt Energie." },
+        { min: 1200, title: "Snack-Krieger 🍪", msg: "Potenzial!" },
+        { min: 4500, title: "Sandwich-Meister 🥪", msg: "Vibriert vor Kraft." },
+        { min: 12000, title: "Pasta Super Saiyan 🍝", msg: "Unglaublich!" },
+        { min: 35000, title: "Pizza-Gott 🍕", msg: "Niemand nimmt das letzte Stück." },
+        { min: 90000, title: "ULTRA BAUCH 👑", msg: "Mythisch!" },
+        { min: 200000, title: "BAUCHSAURIER 🦖", msg: "Du bist eine Legende." },
+      ],
+      fake: [
+        { title: "Papp-Bauch 📦", msg: "Zufallszahl!" },
+        { title: "Falscher Krieger 🎭", msg: "Nicht vertrauen." },
+        { title: "Super-Bluff 🤥", msg: "Der Scanner lügt." },
+        { title: "Imaginärer Bauch 👻", msg: "Nur Show!" },
+        { title: "Lügen-Level 🐸", msg: "Nicht echt." },
+      ],
+    },
+    pt: {
+      title: "💪 Poder da Barriga",
+      intro: "Mostre a barriga à câmera e toque Escanear. Só o criador vê a verdade — os outros veem um resultado falso.",
+      langLabel: "Idioma", guide: "Coloque a barriga aqui", scan: "⚡ Escanear barriga", flip: "🔄 Trocar câmera", retry: "🔁 De novo", back: "← Voltar",
+      badgeOwner: "👑 Criador — verdade", badgeGuest: "Convidado — falso", tagTruth: "Verdade", tagBluff: "Bluff",
+      guestNote: "Este resultado é inventado. Só o criador vê a medida real.",
+      ownerTitle: "👑 Modo criador", ownerPass: "Senha secreta", ownerLogin: "Entrar como criador",
+      ownerHint: "Segure o título por 2 segundos.",
+      errCamera: "Sem acesso à câmera.", errNoCamera: "Navegador sem câmera.",
+      errOwnerWrong: "Senha errada.", errOwnerOk: "✅ Você é o criador! Modo verdade ativo.",
+      errLowCoverage: "Não vejo bem a barriga. Chegue mais perto!",
+      ranks: [
+        { min: 0, title: "Barriga dormindo 😴", msg: "Carregando energia." },
+        { min: 1200, title: "Guerreiro do lanche 🍪", msg: "Tem potencial!" },
+        { min: 4500, title: "Mestre do sanduíche 🥪", msg: "Vibra de poder." },
+        { min: 12000, title: "Super Saiyan de massa 🍝", msg: "Incrível!" },
+        { min: 35000, title: "Deus da pizza 🍕", msg: "Ninguém pega a última." },
+        { min: 90000, title: "ULTRA BARRIGA 👑", msg: "Nível mítico!" },
+        { min: 200000, title: "BARRIGASSAURO 🦖", msg: "Você é lenda." },
+      ],
+      fake: [
+        { title: "Barriga de papelão 📦", msg: "Número inventado!" },
+        { title: "Guerreiro falso 🎭", msg: "Não confie." },
+        { title: "Bluff supremo 🤥", msg: "O medidor mente." },
+        { title: "Barriga imaginária 👻", msg: "É truque!" },
+        { title: "Nível mentiroso 🐸", msg: "Não é real." },
+      ],
+    },
+    ar: {
+      title: "💪 قوة البطن",
+      intro: "أظهر بطنك للكاميرا واضغط مسح. فقط من أنشأ التطبيق يرى الحقيقة — الباقون يرون نتيجة مزيفة.",
+      langLabel: "اللغة", guide: "ضع بطنك هنا", scan: "⚡ مسح البطن", flip: "🔄 تبديل الكاميرا", retry: "🔁 مرة أخرى", back: "← رجوع",
+      badgeOwner: "👑 المنشئ — الحقيقة", badgeGuest: "زائر — نتيجة مزيفة", tagTruth: "حقيقة", tagBluff: "مزيف",
+      guestNote: "هذه النتيجة مختلقة. فقط منشئ التطبيق يرى القياس الحقيقي.",
+      ownerTitle: "👑 وضع المنشئ", ownerPass: "كلمة سر سرية", ownerLogin: "دخول كمنشئ",
+      ownerHint: "اضغط العنوان لمدة ثانيتين.",
+      errCamera: "لا يمكن الوصول للكاميرا.", errNoCamera: "المتصفح لا يدعم الكاميرا.",
+      errOwnerWrong: "كلمة سر خاطئة.", errOwnerOk: "✅ أنت المنشئ! وضع الحقيقة مفعّل.",
+      errLowCoverage: "لا أرى البطن جيداً. اقترب!",
+      ranks: [
+        { min: 0, title: "بطن نائم 😴", msg: "يشحن الطاقة." },
+        { min: 1200, title: "محارب الوجبات 🍪", msg: "لديك إمكانيات!" },
+        { min: 4500, title: "سيد الساندويتش 🥪", msg: "يهتز بالقوة." },
+        { min: 12000, title: "سوبر سايان للمعكرونة 🍝", msg: "مذهل!" },
+        { min: 35000, title: "إله البيتزا 🍕", msg: "لا أحد يلمس الأخيرة." },
+        { min: 90000, title: "البطن الفائق 👑", msg: "مستوى أسطوري!" },
+        { min: 200000, title: "ديناصور البطن 🦖", msg: "أنت أسطورة." },
+      ],
+      fake: [
+        { title: "بطن كرتوني 📦", msg: "رقم عشوائي!" },
+        { title: "محارب مزيف 🎭", msg: "لا تثق." },
+        { title: "خدعة كبرى 🤥", msg: "الماسح يكذب." },
+        { title: "بطن وهمي 👻", msg: "كلها تمثيل!" },
+        { title: "مستوى كاذب 🐸", msg: "ليس حقيقياً." },
+      ],
+    },
+    zh: {
+      title: "💪 肚子力量",
+      intro: "把肚子对准摄像头，点击扫描。只有创建者能看到真相——其他人看到假结果。",
+      langLabel: "语言", guide: "把肚子放这里", scan: "⚡ 扫描肚子", flip: "🔄 切换摄像头", retry: "🔁 再测一次", back: "← 返回",
+      badgeOwner: "👑 创建者 — 真实模式", badgeGuest: "访客 — 假结果", tagTruth: "真相", tagBluff: "假的",
+      guestNote: "这个结果是编造的。只有应用创建者能看到真实测量。",
+      ownerTitle: "👑 创建者模式", ownerPass: "创建者秘密密码", ownerLogin: "以创建者身份进入",
+      ownerHint: "长按标题2秒打开此面板。",
+      errCamera: "无法访问摄像头。", errNoCamera: "此浏览器不支持摄像头。",
+      errOwnerWrong: "密码错误。", errOwnerOk: "✅ 你是创建者！已开启真实模式。",
+      errLowCoverage: "看不清肚子。请靠近！",
+      ranks: [
+        { min: 0, title: "沉睡的肚子 😴", msg: "正在充能。" },
+        { min: 1200, title: "零食战士 🍪", msg: "有潜力！" },
+        { min: 4500, title: "三明治大师 🥪", msg: "充满力量。" },
+        { min: 12000, title: "面条超级赛亚人 🍝", msg: "太厉害了！" },
+        { min: 35000, title: "披萨之神 🍕", msg: "没人敢碰最后一块。" },
+        { min: 90000, title: "超级肚子 👑", msg: "神话级别！" },
+        { min: 200000, title: "肚子龙 🦖", msg: "你是传奇。" },
+      ],
+      fake: [
+        { title: "纸板肚子 📦", msg: "随机假数字！" },
+        { title: "假战士 🎭", msg: "别相信。" },
+        { title: "超级忽悠 🤥", msg: "扫描仪在撒谎。" },
+        { title: "想象肚子 👻", msg: "全是假的！" },
+        { title: "骗子等级 🐸", msg: "不是真的。" },
+      ],
+    },
+    ja: {
+      title: "💪 お腹パワー",
+      intro: "お腹をカメラに見せてスキャンを押して。真実が見えるのは作った人だけ——他の人はウソの結果。",
+      langLabel: "言語", guide: "お腹をここに", scan: "⚡ お腹をスキャン", flip: "🔄 カメラ切替", retry: "🔁 もう一度", back: "← 戻る",
+      badgeOwner: "👑 作成者 — 真実モード", badgeGuest: "ゲスト — ウソの結果", tagTruth: "真実", tagBluff: "ウソ",
+      guestNote: "この結果はウソです。アプリの作成者だけが本当の測定を見られます。",
+      ownerTitle: "👑 作成者モード", ownerPass: "秘密のパスワード", ownerLogin: "作成者として入る",
+      ownerHint: "タイトルを2秒長押し。",
+      errCamera: "カメラにアクセスできません。", errNoCamera: "このブラウザはカメラ非対応。",
+      errOwnerWrong: "パスワードが違います。", errOwnerOk: "✅ 作成者です！真実モードON。",
+      errLowCoverage: "お腹がよく見えません。近づいて！",
+      ranks: [
+        { min: 0, title: "眠るお腹 😴", msg: "エネルギー充電中。" },
+        { min: 1200, title: "おやつ戦士 🍪", msg: "可能性あり！" },
+        { min: 4500, title: "サンドイッチマスター 🥪", msg: "パワーが振動。" },
+        { min: 12000, title: "パスタ超サイヤ人 🍝", msg: "すごい！" },
+        { min: 35000, title: "ピザの神 🍕", msg: "最後の一切れは誰も触らない。" },
+        { min: 90000, title: "ウルトラお腹 👑", msg: "神話レベル！" },
+        { min: 200000, title: "お腹ザウルス 🦖", msg: "伝説だ。" },
+      ],
+      fake: [
+        { title: "段ボールお腹 📦", msg: "適当な数字！" },
+        { title: "ニセ戦士 🎭", msg: "信じないで。" },
+        { title: "最高のウソ 🤥", msg: "スキャナーが嘘つき。" },
+        { title: "想像のお腹 👻", msg: "全部ショー！" },
+        { title: "ウソレベル 🐸", msg: "本物じゃない。" },
+      ],
+    },
+    ko: {
+      title: "💪 배 파워",
+      intro: "배를 카메라에 보이고 스캔을 누르세요. 진실은 만든 사람만 볼 수 있어요 — 다른 사람은 가짜 결과.",
+      langLabel: "언어", guide: "배를 여기에", scan: "⚡ 배 스캔", flip: "🔄 카메라 전환", retry: "🔁 다시", back: "← 돌아가기",
+      badgeOwner: "👑 제작자 — 진실 모드", badgeGuest: "손님 — 가짜 결과", tagTruth: "진실", tagBluff: "가짜",
+      guestNote: "이 결과는 지어낸 거예요. 앱 제작자만 진짜 측정을 볼 수 있어요.",
+      ownerTitle: "👑 제작자 모드", ownerPass: "비밀 비밀번호", ownerLogin: "제작자로 들어가기",
+      ownerHint: "제목을 2초 길게 누르세요.",
+      errCamera: "카메라에 접근할 수 없어요.", errNoCamera: "이 브라우저는 카메라를 지원하지 않아요.",
+      errOwnerWrong: "비밀번호가 틀렸어요.", errOwnerOk: "✅ 제작자입니다! 진실 모드 켜짐.",
+      errLowCoverage: "배가 잘 안 보여요. 가까이 오세요!",
+      ranks: [
+        { min: 0, title: "자는 배 😴", msg: "에너지 충전 중." },
+        { min: 1200, title: "간식 전사 🍪", msg: "잠재력 있음!" },
+        { min: 4500, title: "샌드위치 마스터 🥪", msg: "힘이 진동." },
+        { min: 12000, title: "파스타 초사이어인 🍝", msg: "대단해!" },
+        { min: 35000, title: "피자의 신 🍕", msg: "마지막 조각은 아무도 안 건드림." },
+        { min: 90000, title: "울트라 배 👑", msg: "신화 레벨!" },
+        { min: 200000, title: "배 사우르스 🦖", msg: "전설이야." },
+      ],
+      fake: [
+        { title: "골판지 배 📦", msg: "랜덤 가짜 숫자!" },
+        { title: "가짜 전사 🎭", msg: "믿지 마." },
+        { title: "최고의 거짓말 🤥", msg: "스캐너가 거짓말." },
+        { title: "상상의 배 👻", msg: "전부 쇼!" },
+        { title: "거짓 레벨 🐸", msg: "진짜 아님." },
+      ],
+    },
+    ru: {
+      title: "💪 Сила Живота",
+      intro: "Покажи живот камере и нажми Сканировать. Только создатель видит правду — остальные видят фальшивый результат.",
+      langLabel: "Язык", guide: "Положи живот сюда", scan: "⚡ Сканировать живот", flip: "🔄 Сменить камеру", retry: "🔁 Ещё раз", back: "← Назад",
+      badgeOwner: "👑 Создатель — правда", badgeGuest: "Гость — фальшь", tagTruth: "Правда", tagBluff: "Блеф",
+      guestNote: "Этот результат выдуман. Только создатель видит настоящее измерение.",
+      ownerTitle: "👑 Режим создателя", ownerPass: "Секретный пароль", ownerLogin: "Войти как создатель",
+      ownerHint: "Удерживай заголовок 2 секунды.",
+      errCamera: "Нет доступа к камере.", errNoCamera: "Браузер не поддерживает камеру.",
+      errOwnerWrong: "Неверный пароль.", errOwnerOk: "✅ Ты создатель! Режим правды включён.",
+      errLowCoverage: "Плохо видно живот. Подойди ближе!",
+      ranks: [
+        { min: 0, title: "Спящий живот 😴", msg: "Заряжается." },
+        { min: 1200, title: "Воин перекуса 🍪", msg: "Есть потенциал!" },
+        { min: 4500, title: "Мастер бутерброда 🥪", msg: "Вибрирует от силы." },
+        { min: 12000, title: "Супер Сайян пасты 🍝", msg: "Невероятно!" },
+        { min: 35000, title: "Бог пиццы 🍕", msg: "Никто не трогает последний кусок." },
+        { min: 90000, title: "УЛЬТРА ЖИВОТ 👑", msg: "Мифический уровень!" },
+        { min: 200000, title: "ЖИВОТОЗАВР 🦖", msg: "Ты легенда." },
+      ],
+      fake: [
+        { title: "Картонный живот 📦", msg: "Случайное число!" },
+        { title: "Фальшивый воин 🎭", msg: "Не верь." },
+        { title: "Супер-блеф 🤥", msg: "Сканер врёт." },
+        { title: "Воображаемый живот 👻", msg: "Всё показуха!" },
+        { title: "Уровень лжеца 🐸", msg: "Не настоящее." },
+      ],
+    },
+  };
+
+  function fillLang(code, base) {
+    if (T[code]) return;
+    T[code] = Object.assign({}, base);
+    T[code].title = base.title;
+  }
+
+  ["tr","hi","pl","nl","ro","uk","id","vi","el","sv","cs","hu","th","he"].forEach((code) => {
+    const b = T.en;
+    T[code] = Object.assign({}, b, {
+      ranks: b.ranks.map((r) => Object.assign({}, r)),
+      fake: b.fake.map((f) => Object.assign({}, f)),
+    });
+  });
+
+  Object.assign(T.tr, {
+    title: "💪 Karın Gücü", intro: "Karnını kameraya göster ve Tara'ya bas. Sadece uygulamayı yapan kişi gerçeği görür.",
+    langLabel: "Dil", guide: "Karnını buraya koy", scan: "⚡ Karnı tara", flip: "🔄 Kamerayı değiştir", retry: "🔁 Tekrar", back: "← Geri",
+    badgeOwner: "👑 Yapımcı — gerçek", badgeGuest: "Misafir — sahte sonuç", tagTruth: "Gerçek", tagBluff: "Sahte",
+    guestNote: "Bu sonuç uydurma. Sadece yapımcı gerçek ölçümü görür.",
+    ownerTitle: "👑 Yapımcı modu", ownerPass: "Gizli şifre", ownerLogin: "Yapımcı olarak gir",
+    ownerHint: "Başlığa 2 saniye basılı tut.", errCamera: "Kameraya erişilemiyor.", errNoCamera: "Tarayıcı kamera desteklemiyor.",
+    errOwnerWrong: "Yanlış şifre.", errOwnerOk: "✅ Yapımcısın! Gerçek mod açık.", errLowCoverage: "Karın iyi görünmüyor. Yaklaş!",
+    ranks: [
+      { min: 0, title: "Uyuyan karın 😴", msg: "Enerji yükleniyor." },
+      { min: 1200, title: "Atıştırmalık savaşçısı 🍪", msg: "Potansiyel var!" },
+      { min: 4500, title: "Sandviç ustası 🥪", msg: "Güçle titriyor." },
+      { min: 12000, title: "Makarna Süper Saiyan 🍝", msg: "İnanılmaz!" },
+      { min: 35000, title: "Pizza tanrısı 🍕", msg: "Son dilime kimse dokunmaz." },
+      { min: 90000, title: "ULTRA KARIN 👑", msg: "Efsane seviye!" },
+      { min: 200000, title: "KARINSAUR 🦖", msg: "Sen bir efsanesin." },
+    ],
+    fake: [
+      { title: "Karton karın 📦", msg: "Rastgele sahte sayı!" },
+      { title: "Sahte savaşçı 🎭", msg: "Güvenme." },
+      { title: "Süper blöf 🤥", msg: "Tarayıcı yalan söylüyor." },
+      { title: "Hayali karın 👻", msg: "Hepsi gösteri!" },
+      { title: "Yalancı seviye 🐸", msg: "Gerçek değil." },
+    ],
+  });
+
+  Object.assign(T.pl, {
+    title: "💪 Moc Brzucha", intro: "Pokaż brzuch kamerze i naciśnij Skanuj. Tylko twórca widzi prawdę.",
+    langLabel: "Język", guide: "Połóż brzuch tutaj", scan: "⚡ Skanuj brzuch", flip: "🔄 Zmień kamerę", retry: "🔁 Jeszcze raz", back: "← Wróć",
+    badgeOwner: "👑 Twórca — prawda", badgeGuest: "Gość — fałszywy wynik", tagTruth: "Prawda", tagBluff: "Fałsz",
+    guestNote: "Ten wynik jest zmyślony. Tylko twórca widzi prawdziwy pomiar.",
+    ownerTitle: "👑 Tryb twórcy", ownerPass: "Tajne hasło", ownerLogin: "Wejdź jako twórca",
+    ownerHint: "Przytrzymaj tytuł przez 2 sekundy.", errOwnerWrong: "Złe hasło.", errOwnerOk: "✅ Jesteś twórcą!",
+    errCamera: "Brak dostępu do kamery.", errNoCamera: "Przeglądarka nie obsługuje kamery.", errLowCoverage: "Słabo widać brzuch. Podejdź!",
+    ranks: [
+      { min: 0, title: "Śpiący brzuch 😴", msg: "Ładuje energię." },
+      { min: 1200, title: "Wojownik przekąsek 🍪", msg: "Masz potencjał!" },
+      { min: 4500, title: "Mistrz kanapki 🥪", msg: "Wibruje mocą." },
+      { min: 12000, title: "Super Saiyan makaronu 🍝", msg: "Niesamowite!" },
+      { min: 35000, title: "Bóg pizzy 🍕", msg: "Nikt nie dotyka ostatniego." },
+      { min: 90000, title: "ULTRA BRZUCH 👑", msg: "Mityczny poziom!" },
+      { min: 200000, title: "BRZUCHOZAUr 🦖", msg: "Jesteś legendą." },
+    ],
+    fake: [
+      { title: "Kartonowy brzuch 📦", msg: "Losowy fałszywy numer!" },
+      { title: "Fałszywy wojownik 🎭", msg: "Nie ufaj." },
+      { title: "Supremny blef 🤥", msg: "Skaner kłamie." },
+      { title: "Wyimaginowany brzuch 👻", msg: "To tylko show!" },
+      { title: "Poziom kłamcy 🐸", msg: "Nieprawdziwe." },
+    ],
+  });
+
+  Object.assign(T.hi, {
+    title: "💪 पेट की शक्ति",
+    intro: "अपना पेट कैमरे में दिखाएं और स्कैन दबाएं। सच केवल ऐप बनाने वाला देखता है।",
+    langLabel: "भाषा", guide: "पेट यहाँ रखें", scan: "⚡ पेट स्कैन करें", flip: "🔄 कैमरा बदलें", retry: "🔁 फिर से", back: "← वापस",
+    badgeOwner: "👑 निर्माता — सच", badgeGuest: "मेहमान — झूठा परिणाम", tagTruth: "सच", tagBluff: "झूठ",
+    guestNote: "यह परिणाम बनाया गया है। केवल निर्माता असली माप देखता है।",
+    ownerTitle: "👑 निर्माता मोड", ownerPass: "गुप्त पासवर्ड", ownerLogin: "निर्माता के रूप में प्रवेश",
+    ownerHint: "शीर्षक 2 सेकंड दबाए रखें।", errOwnerWrong: "गलत पासवर्ड।", errOwnerOk: "✅ आप निर्माता हैं!",
+    errCamera: "कैमरा एक्सेस नहीं।", errNoCamera: "ब्राउज़र कैमरा सपोर्ट नहीं करता।", errLowCoverage: "पेट साफ नहीं दिख रहा। पास आएं!",
+    ranks: [
+      { min: 0, title: "सोता पेट 😴", msg: "ऊर्जा लोड हो रही।" },
+      { min: 1200, title: "नाश्ता योद्धा 🍪", msg: "संभावना है!" },
+      { min: 4500, title: "सैंडविच मास्टर 🥪", msg: "शक्ति से कांपता।" },
+      { min: 12000, title: "पास्ता सुपर सैयान 🍝", msg: "अविश्वसनीय!" },
+      { min: 35000, title: "पिज़्ज़ा का देवता 🍕", msg: "आखिरी टुकड़ा कोई नहीं छूता।" },
+      { min: 90000, title: "अल्ट्रा पेट 👑", msg: "पौराणिक स्तर!" },
+      { min: 200000, title: "पेटोसॉर 🦖", msg: "आप एक किंवदंती हैं।" },
+    ],
+    fake: [
+      { title: "कार्डबोर्ड पेट 📦", msg: "रैंडम झूठा नंबर!" },
+      { title: "नकली योद्धा 🎭", msg: "भरोसा मत करो।" },
+      { title: "सुप्रीम ब्लफ 🤥", msg: "स्कैनर झूठ बोल रहा।" },
+      { title: "काल्पनिक पेट 👻", msg: "सब नाटक!" },
+      { title: "झूठा स्तर 🐸", msg: "असली नहीं।" },
+    ],
+  });
+
+  const langSelect = document.getElementById("lang");
+  const video = document.getElementById("video");
+  const preview = document.getElementById("preview");
+  const ctx = preview.getContext("2d", { willReadFrequently: true });
+  const scanLine = document.getElementById("scan-line");
+  const btnScan = document.getElementById("btn-scan");
+  const btnFlip = document.getElementById("btn-flip");
+  const btnRetry = document.getElementById("btn-retry");
+  const errBox = document.getElementById("err");
+  const guestNote = document.getElementById("guest-note");
+  const result = document.getElementById("result");
+  const resultTag = document.getElementById("result-tag");
+  const rankEl = document.getElementById("rank");
+  const powerEl = document.getElementById("power");
+  const msgEl = document.getElementById("msg");
+  const meterFill = document.getElementById("meter-fill");
+  const modeBadge = document.getElementById("mode-badge");
+  const paywall = document.getElementById("paywall");
+  const btnPay = document.getElementById("btn-pay");
+  const btnPaidDone = document.getElementById("btn-paid-done");
+  const freePassInput = document.getElementById("free-pass");
+  const btnFreePass = document.getElementById("btn-free-pass");
+  const ownerPanel = document.getElementById("owner-panel");
+  const ownerPass = document.getElementById("owner-pass");
+  const btnOwnerLogin = document.getElementById("btn-owner-login");
+  const title = document.getElementById("title");
+
+  const PAY_FALLBACK = T.en;
+
+  let stream = null;
+  let facing = "user";
+  let scanning = false;
+  let lang = "it";
+
+  function detectLang() {
+    const saved = localStorage.getItem(LS_LANG);
+    if (saved && T[saved]) return saved;
+    const nav = (navigator.language || "it").slice(0, 2).toLowerCase();
+    return T[nav] ? nav : "it";
+  }
+
+  function t() { return T[lang] || T.it; }
+
+  function txt(key) {
+    const s = t();
+    return s[key] != null ? s[key] : PAY_FALLBACK[key];
+  }
+
+  function isOwner() {
+    return (
+      localStorage.getItem(LS_OWNER) === "1" ||
+      (window.MyFirstAppEarnings && MyFirstAppEarnings.isCreator())
+    );
+  }
+
+  function paintOwnerEarnings() {
+    const box = document.getElementById("owner-earnings");
+    if (!window.MyFirstAppEarnings || !isOwner()) {
+      box.style.display = "none";
+      return;
+    }
+    const data = MyFirstAppEarnings.load();
+    box.style.display = "block";
+    document.getElementById("owner-earn-total").textContent = MyFirstAppEarnings.formatChf(data.totalChf);
+    document.getElementById("owner-earn-count").textContent = data.count + " pagament" + (data.count === 1 ? "o" : "i");
+  }
+
+  function hasFreePass() {
+    return localStorage.getItem(LS_FREE) === "1";
+  }
+
+  function hasPaid() {
+    return localStorage.getItem(LS_PAID) === "1";
+  }
+
+  function canSeeTruth() {
+    return isOwner() || hasFreePass() || hasPaid();
+  }
+
+  function setupPayment() {
+    const price = CONFIG.PRICE + " " + CONFIG.CURRENCY + " (franchi)";
+    document.getElementById("price-label").textContent = price;
+    if (CONFIG.PAYPAL_USERNAME) {
+      btnPay.href =
+        "https://paypal.me/" +
+        encodeURIComponent(CONFIG.PAYPAL_USERNAME) +
+        "/" +
+        CONFIG.PRICE;
+    } else {
+      btnPay.href = "#";
+    }
+  }
+
+  function buildLangSelect() {
+    langSelect.innerHTML = "";
+    LANG_META.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.code;
+      opt.textContent = m.label;
+      langSelect.appendChild(opt);
+    });
+    langSelect.value = lang;
+  }
+
+  function applyUI() {
+    const s = t();
+    document.documentElement.lang = lang;
+    document.title = s.title.replace(/^💪\s*/, "");
+    title.textContent = s.title;
+    document.getElementById("intro").textContent = s.intro;
+    document.getElementById("lang-label").textContent = s.langLabel;
+    document.getElementById("guide-label").textContent = s.guide;
+    btnScan.textContent = s.scan;
+    btnFlip.textContent = s.flip;
+    btnRetry.textContent = s.retry;
+    document.getElementById("nav-back").textContent = s.back;
+    document.getElementById("owner-title").textContent = s.ownerTitle;
+    ownerPass.placeholder = s.ownerPass;
+    btnOwnerLogin.textContent = s.ownerLogin;
+    document.getElementById("owner-hint").textContent = s.ownerHint;
+    guestNote.textContent = txt("guestNote");
+    document.getElementById("pay-title").textContent = txt("payTitle");
+    document.getElementById("pay-desc").textContent = txt("payDesc");
+    btnPay.textContent = txt("payBtn");
+    btnPaidDone.textContent = txt("paidDone");
+    document.getElementById("pay-or").textContent = txt("payOr");
+    freePassInput.placeholder = txt("freePassPh");
+    btnFreePass.textContent = txt("freePassBtn");
+    document.getElementById("pay-hint").textContent = txt("payHint");
+    updateModeBadge();
+    document.body.dir = (lang === "ar" || lang === "he") ? "rtl" : "ltr";
+  }
+
+  function updateModeBadge() {
+    if (isOwner()) {
+      modeBadge.textContent = txt("badgeOwner");
+      modeBadge.className = "badge owner";
+      guestNote.classList.remove("on");
+      paywall.classList.remove("on");
+    } else if (hasFreePass()) {
+      modeBadge.textContent = txt("badgeFree");
+      modeBadge.className = "badge free";
+      guestNote.classList.remove("on");
+      paywall.classList.remove("on");
+    } else if (hasPaid()) {
+      modeBadge.textContent = txt("badgePaid");
+      modeBadge.className = "badge paid";
+      guestNote.classList.remove("on");
+      paywall.classList.remove("on");
+    } else {
+      modeBadge.textContent = txt("badgeGuest");
+      modeBadge.className = "badge guest";
+      guestNote.classList.add("on");
+      paywall.classList.add("on");
+    }
+  }
+
+  function showErr(text, ok) {
+    errBox.textContent = text;
+    errBox.classList.add("on");
+    errBox.classList.toggle("ok", !!ok);
+  }
+
+  function hideErr() {
+    errBox.classList.remove("on", "ok");
+    errBox.textContent = "";
+  }
+
+  function stopStream() {
+    if (stream) {
+      stream.getTracks().forEach((tr) => tr.stop());
+      stream = null;
+    }
+  }
+
+  async function startCamera() {
+    hideErr();
+    stopStream();
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width: { ideal: 720 }, height: { ideal: 960 } },
+        audio: false,
+      });
+      video.srcObject = stream;
+      await video.play();
+    } catch (e) {
+      showErr(t().errCamera);
+    }
+  }
+
+  function isSkinLike(r, g, b) {
+    if (r < 60 || g < 30 || b < 20) return false;
+    return (r - g) > 8 && (g - b) > 2 && r > b && r < 245 && (r + g) > b * 2.1;
+  }
+
+  function analyzeFrameTruth() {
+    const w = preview.width;
+    const h = preview.height;
+    ctx.drawImage(video, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const cx = w * 0.5, cy = h * 0.5, rx = w * 0.31, ry = h * 0.24;
+    let skin = 0, total = 0, warmSum = 0, brightSum = 0;
+
+    for (let y = Math.floor(cy - ry); y < cy + ry; y += 2) {
+      for (let x = Math.floor(cx - rx); x < cx + rx; x += 2) {
+        const nx = (x - cx) / rx, ny = (y - cy) / ry;
+        if (nx * nx + ny * ny > 1) continue;
+        const i = (y * w + x) * 4;
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        total++;
+        brightSum += (r + g + b) / 3;
+        if (isSkinLike(r, g, b)) { skin++; warmSum += r - b; }
+      }
+    }
+
+    const coverage = total ? skin / total : 0;
+    const warmth = skin ? warmSum / skin : 0;
+    const brightness = total ? brightSum / total : 0;
+    let power = Math.floor(coverage * 180000 + warmth * 420 + Math.max(0, brightness - 90) * 180 + Math.random() * 1800);
+    if (coverage < 0.04) power = Math.floor(200 + Math.random() * 800);
+    else if (coverage < 0.1) power = Math.floor(power * 0.45);
+    power = Math.max(80, Math.min(999999, power));
+    return { power, coverage, truth: true };
+  }
+
+  function analyzeFrameFake() {
+    const silly = [7, 42, 69, 404, 1337, 9999, 12345, 3, 100, 888888];
+    const fakeList = t().fake;
+    return {
+      power: silly[Math.floor(Math.random() * silly.length)],
+      coverage: 0,
+      truth: false,
+      fakeRank: fakeList[Math.floor(Math.random() * fakeList.length)],
+    };
+  }
+
+  function pickRank(power) {
+    const ranks = t().ranks;
+    let rank = ranks[0];
+    for (const r of ranks) if (power >= r.min) rank = r;
+    return rank;
+  }
+
+  function localeForLang() {
+    const map = { it: "it-IT", en: "en-US", de: "de-DE", fr: "fr-FR", es: "es-ES", pt: "pt-PT", ar: "ar-SA", zh: "zh-CN", ja: "ja-JP", ko: "ko-KR", ru: "ru-RU", pl: "pl-PL", hi: "hi-IN", tr: "tr-TR" };
+    return map[lang] || "en-US";
+  }
+
+  function showResult(data) {
+    const s = t();
+    const truth = data.truth;
+    resultTag.textContent = truth ? s.tagTruth : s.tagBluff;
+    resultTag.className = "tag " + (truth ? "truth" : "bluff");
+    result.classList.toggle("fake", !truth);
+
+    if (truth) {
+      const rank = pickRank(data.power);
+      rankEl.textContent = rank.title;
+      powerEl.textContent = data.power.toLocaleString(localeForLang());
+      msgEl.textContent = data.coverage < 0.06 ? s.errLowCoverage : rank.msg;
+    } else {
+      rankEl.textContent = data.fakeRank.title;
+      powerEl.textContent = data.power.toLocaleString(localeForLang());
+      msgEl.textContent = data.fakeRank.msg;
+    }
+
+    const pct = Math.min(100, (Math.log10(data.power + 1) / Math.log10(999999)) * 100);
+    meterFill.style.width = pct.toFixed(1) + "%";
+    result.classList.add("on");
+    if (!truth && !canSeeTruth()) paywall.classList.add("on");
+  }
+
+  async function scan() {
+    if (scanning || !stream) return;
+    scanning = true;
+    btnScan.disabled = true;
+    hideErr();
+    scanLine.classList.add("on");
+    await new Promise((r) => setTimeout(r, 1500));
+    showResult(canSeeTruth() ? analyzeFrameTruth() : analyzeFrameFake());
+    scanLine.classList.remove("on");
+    scanning = false;
+    btnScan.disabled = false;
+  }
+
+  function tryOwnerLogin() {
+    const ok =
+      ownerPass.value === CONFIG.OWNER_SECRET ||
+      (window.MyFirstAppEarnings && MyFirstAppEarnings.loginCreator(ownerPass.value));
+    if (ok) {
+      localStorage.setItem(LS_OWNER, "1");
+      ownerPanel.classList.remove("on");
+      ownerPass.value = "";
+      updateModeBadge();
+      paintOwnerEarnings();
+      showErr(t().errOwnerOk, true);
+    } else {
+      showErr(t().errOwnerWrong);
+    }
+  }
+
+  function tryFreePass() {
+    if (freePassInput.value === CONFIG.FREE_PASSWORD) {
+      localStorage.setItem(LS_FREE, "1");
+      freePassInput.value = "";
+      updateModeBadge();
+      showErr(txt("errFreeOk"), true);
+    } else {
+      showErr(txt("errFreeWrong"));
+    }
+  }
+
+  function tryPaidDone() {
+    localStorage.setItem(LS_PAID, "1");
+    if (window.MyFirstAppEarnings) {
+      MyFirstAppEarnings.recordPayment("Potenza Pancia", CONFIG.PRICE);
+    }
+    updateModeBadge();
+    paintOwnerEarnings();
+    showErr(txt("errPaidOk"), true);
+  }
+
+  let pressTimer = null;
+  title.addEventListener("pointerdown", () => {
+    pressTimer = setTimeout(() => {
+      ownerPanel.classList.toggle("on");
+      if (ownerPanel.classList.contains("on")) paintOwnerEarnings();
+    }, 2000);
+  });
+  title.addEventListener("pointerup", () => clearTimeout(pressTimer));
+  title.addEventListener("pointerleave", () => clearTimeout(pressTimer));
+
+  langSelect.addEventListener("change", () => {
+    lang = langSelect.value;
+    localStorage.setItem(LS_LANG, lang);
+    applyUI();
+  });
+
+  btnScan.addEventListener("click", scan);
+  btnFlip.addEventListener("click", () => { facing = facing === "user" ? "environment" : "user"; startCamera(); });
+  btnRetry.addEventListener("click", () => {
+    result.classList.remove("on");
+    startCamera();
+  });
+  btnOwnerLogin.addEventListener("click", tryOwnerLogin);
+  btnFreePass.addEventListener("click", tryFreePass);
+  btnPaidDone.addEventListener("click", tryPaidDone);
+  ownerPass.addEventListener("keydown", (e) => { if (e.key === "Enter") tryOwnerLogin(); });
+  freePassInput.addEventListener("keydown", (e) => { if (e.key === "Enter") tryFreePass(); });
+
+  lang = detectLang();
+  buildLangSelect();
+  setupPayment();
+  applyUI();
+  paintOwnerEarnings();
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showErr(t().errNoCamera);
+  } else {
+    startCamera();
+  }
+
+  window.addEventListener("pagehide", stopStream);
+})();
+  </script>
+</body>
+</html>
